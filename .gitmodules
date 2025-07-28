@@ -1,0 +1,7 @@
+[submodule "synthterrain"]
+	path = synthterrain
+	url = git@github.com:NeoGeographyToolkit/synthterrain.git
+[submodule "moonpies"]
+	path = moonpies
+	url = git@github.com:margareh/moonpies.git
+	branch = scratch/add_maps
