@@ -5,3 +5,7 @@
 	path = moonpies
 	url = git@github.com:margareh/moonpies.git
 	branch = scratch/add_maps
+[submodule "raytrace_cuda"]
+	path = raytrace_cuda
+	url = git@github.com:margareh/raytrace_cuda.git
+	branch = compute_horizon
