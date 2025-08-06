@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+
+[project]
+name = "lvsim"
+description = ""
+dynamic = ["version"]
+authors = [
+    {name = "Margaret Hansen", email = "margareh@andrew.cmu.edu"}
+]
+maintainers = [
+    {name = "Margaret Hansen", email = "margareh@andrew.cmu.edu"}
+]
+readme = "README.md"
+dependencies = [
+    "numpy",
+]
+requires-python = ">= 3.8"
+
+[project.scripts]
+lvsim = "lvsim.cli:run"
+
