@@ -12,8 +12,18 @@ Example:
 """
 
 import argparse
-import lvsim
+from lvsim import LvSim
+from lvsim.utils import LvSimCfg
 
 def run():
+    
+    # initialize config and sim
+    cfg = LvSimCfg()
+    lvsim = LvSim(cfg)
 
-    pass
+    # run sim
+    lvsim.run_all()
+    
+
+if __name__ == "__main__":
+    run()
