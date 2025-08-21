@@ -9,3 +9,6 @@
 	path = raytrace_cuda
 	url = git@github.com:margareh/raytrace_cuda.git
 	branch = compute_horizon
+[submodule "diffusion_cuda"]
+	path = diffusion_cuda
+	url = git@github.com:margareh/diffusion_cuda.git
