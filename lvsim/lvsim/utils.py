@@ -55,6 +55,10 @@ class LvSimCfg():
                             type=float,
                             default=0.02,
                             help='Standard deviation for crater bin definition when using bins to apply diffusion model')
+        parser.add_argument('--domain_size',
+                            type=int,
+                            default=200,
+                            help='Domain size for generating crater models when performing diffusion')
 
         # behavior flags
         parser.add_argument('--plot',
