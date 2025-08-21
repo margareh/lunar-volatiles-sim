@@ -51,6 +51,10 @@ class LvSimCfg():
                             type=str,
                             default='VIPER_Env_Spec',
                             help='Name of crater size-frequency distribution to use (only supports Trask or VIPER_Env_Spec)')
+        parser.add_argument('--start_dd_std',
+                            type=float,
+                            default=0.02,
+                            help='Standard deviation for crater bin definition when using bins to apply diffusion model')
 
         # behavior flags
         parser.add_argument('--plot',
@@ -82,4 +86,7 @@ class LvSimCfg():
 
         if os.path.exists(self.args.outpath) == False:
             os.mkdir(self.args.outpath)
+        
+        if os.path.exists(os.path.join(self.args.outpath, 'plots')) == False:
+            os.mkdir(os.path.join(self.args.outpath, 'plots'))
 
