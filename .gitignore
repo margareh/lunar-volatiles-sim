@@ -9,6 +9,7 @@ __pycache__/
 # data and output dirs
 data/
 output/
+figs/
 
 # Distribution / packaging
 .Python
