@@ -5,81 +5,51 @@
 import os
 import math
 import copy
-import raytrace
+import warnings
 import random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from numpy.polynomial import Polynomial
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from multiprocessing import Pool
+from pyproj import Proj, CRS
 from shapely.geometry import box
 from rasterio.transform import from_origin
 from rasterio.windows import from_bounds
 
 from diffusion.diffusion import diffusion_cuda
+from raytrace.raytrace import raytrace_horizon
 
 from synthterrain.crater import functions, determine_production_function, random_points, to_file
 from synthterrain.crater.diffusion import make_crater_field
 
-from lvsim.utils import LvSimCfg
+from lvsim.utils import LvSimCfg, latlon2enu, cartesian2spherical
+from lvsim.crater import profile, stopar_fresh_dd
 
+# some global defines
+# conversion from KM to AU (necessary for ephemeris data)
+KM_AU = 149597870.700
 
-# crater profile copied from FTmod_Crater class in synthterrain
-# used here to create initial profiles when a crater is first added
-def profile(dd, diameter, D=200):
-    """Returns a numpy array of elevation values based in the input numpy
-    array of radius fraction values, such that a radius fraction value
-    of 1 is at the rim, less than that interior to the crater, etc.
+# WKT string for converting between grid definition (lunar polar stereographic) to lat long
+# copied from Haworth DEM file
+WKT_STR = """PROJCS["PolarStereographic Moon",GEOGCS["D_Moon",DATUM["D_Moon",SPHEROID["Moon_polarRadius",1737400,0]],PRIMEM["Reference_Meridian",180],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Polar_Stereographic"],PARAMETER["latitude_of_origin",-90],PARAMETER["central_meridian",0],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1],AXIS["Easting",NORTH],AXIS["Northing",NORTH]]"""
 
-    A ValueError will be thrown if any values in r are < 0.
-    """
-
-    x = np.linspace(-2, 2, D)  # spans a space 2x the diameter.
-    xx, yy = np.meshgrid(x, x, sparse=True)  # square domain
-    r = np.sqrt(xx**2 + yy**2)
-
-    if not isinstance(r, np.ndarray):
-        r = np.ndarray(r)
-
-    out_arr = np.zeros_like(r)
-
-    if np.any(r < 0):
-        raise ValueError("The radius fraction value can't be less than zero.")
-
-    inner_idx = np.logical_and(0 <= r, r <= 0.98)
-    rim_idx = np.logical_and(0.98 < r, r <= 1.02)
-    outer_idx = np.logical_and(1.02 < r, r <= 1.5)
-
-    inner_poly = Polynomial([-0.228809953, 0.227533882, 0.083116795, -0.039499407])
-    outer_poly = Polynomial([0.188253307, -0.187050452, 0.01844746, 0.01505647])
-
-    rim_hoverd = 0.036822095
-
-    out_arr[inner_idx] = inner_poly(r[inner_idx])
-    out_arr[rim_idx] = rim_hoverd
-    out_arr[outer_idx] = outer_poly(r[outer_idx])
-
-    floor = rim_hoverd - (dd)
-    out_arr[out_arr < floor] = floor
-
-    return out_arr * diameter
-
-# Stopar depth/diameter ratio for fresh craters
-# Copied from synthterrain and modified to be usable with arrays of diameters
-def stopar_fresh_dd(diameter):
-    """
-    Returns a depth/Diameter ratio based on the set of graduated d/D
-    categories in Stopar et al. (2017), defined down to 40 m.  This
-    function also adds two extrapolated categories.
-    """
-    # The last two elements are extrapolated
-    d_lower_bounds = (0, 10, 40, 100, 200, 400)
-    dds = (0.10, 0.11, 0.13, 0.15, 0.17, 0.21)
-
-    dd_list = np.ones_like(diameter) * np.nan
-    for d, dd in zip(d_lower_bounds, dds):
-        dd_list[diameter >= d] = dd
-    return dd_list
+# Load the ephemeris data from JPL Horizons
+def load_ephemeris_data(file):
+    cols = ['date', 'bl1' ,'bl2', 'obs_sublon', 'obs_sublat', 'sun_sublon', 'sun_sublat', 'sun_range', 'sun_rdot']
+    dtypes = {'date' : str,
+              'bl1' : str,
+              'bl2' : str,
+              'obs_sublon' : np.float64, 
+              'obs_sublat' : np.float64,
+              'sun_sublon' : np.float64,
+              'sun_sublat' : np.float64,
+              'sun_range' : np.float64,
+              'sun_rdot' : np.float64}
+    eph_df = pd.read_csv(file, index_col=False, names=cols, dtype=dtypes, parse_dates=['date'], sep=',')
+    eph_df = eph_df[['date', 'sun_sublon', 'sun_sublat', 'sun_range']]
+    return eph_df
 
 
 # class for lunar volatiles sim
@@ -101,30 +71,46 @@ class LvSim():
         self.window = from_bounds(*self.poly.bounds, transform=self.transform)
         self.crater_dist = getattr(functions, cfg.args.csfd)(a=cfg.args.d_lim[0], b=cfg.args.d_lim[1])
 
-        # self.crater_df = crater.synthesize(
-        #     self.crater_dist,
-        #     polygon=self.poly,
-        #     min_d=cfg.args.d_lim[0],
-        #     max_d=cfg.args.d_lim[1],
-        #     return_surfaces=True,
-        #     start_dd_std=cfg.args.start_dd_std,
-        # )
-        # print(self.crater_df["surface"][0].shape) # D x D
-
         # crater datafame and surface are initially empty and flat
         self.crater_df = pd.DataFrame(columns=['x','y','diameter','age','d/D','surface'])
         self.create_surface()
+        self.size = self.surface.shape[0]
 
         # save production function information
         self.prod_fn = determine_production_function(self.crater_dist.a, self.crater_dist.b)
 
-        # save starting age of model
+        # starting age of model
         self.t = cfg.args.max_age
+
+        # save lat and long information based on assumed grid
+        # build a grid
+        x = np.arange(0, self.size * cfg.args.res, cfg.args.res)
+        x -= float(self.size) * cfg.args.res / 2 # center the grid values on 0
+        XX, YY = np.meshgrid(x, -x)
+        grid = np.dstack((XX, YY)).reshape((self.size*self.size, 2))
+
+        # convert to lat long so we can compare to the ephemeris data
+        # which projection is best? polar stereographic (ups) used for other data of south pole, gnomonic (gnom) would preserve geodesics as straight lines (do we care about this?)
+        crs = CRS.from_wkt(WKT_STR)
+        proj = Proj(crs)
+        self.lons, self.lats = proj(-grid[:,1], grid[:,0], inverse=True)
+        self.lons += 180
+
+        # since the surface starts out as flat, we can illuminate it easily by setting elevation to 0 deg for all azimuths
+        self.azims = np.arange(0, 360, cfg.args.azim_res)
+        self.elev_db = np.tile(np.zeros_like(self.surface), (len(self.azims), 1, 1))
+        # print(self.elev_db.shape)
+        self.eph_df = load_ephemeris_data(cfg.args.eph_file)
+        print("\tIlluminating model...")
+        self.illuminate()
+
+        # save the list of craters, current surface, and illumination model
+        self.save()
 
 
     # Use illumination maps and moonpies to generate ice distribution
     def gen_ice_dist(self, time):
-        pass    
+        pass
 
     # Produce sensor observations for a specific location
     def gen_sensor_obs(self, time):
@@ -146,7 +132,15 @@ class LvSim():
                 print("Now on " + str(self.t) + " Ga")
 
             # terrain changes (diffusion, production of new craters, removal of old craters)
+            print("\tUpdating crater list")
             self.evolve_terrain()
+
+            # compute illumination
+            print("\tCalculating horizons")
+            self.calc_horizons()
+
+            print("\tCalculating illumination")
+            self.illuminate()
 
             # ice delivery
 
@@ -210,9 +204,6 @@ class LvSim():
         else:
             all_df = copy.copy(new_df)
 
-        # for i in range(len(all_df)):
-        #     print(all_df["surface"][i].shape)
-
         # Apply diffusion model to craters
         surfs_np = np.array(all_df["surface"].tolist())
         new_ratios, new_surfs = diffusion_cuda(all_df["diameter"], all_df["d/D"], all_df["age"], surfs_np, D=self.cfg.args.domain_size)
@@ -231,6 +222,96 @@ class LvSim():
         # Update stored surface
         self.create_surface()
 
+    # Compute horizons for a given terrain map
+    def calc_horizons(self):
+
+        # add on border based on how far we're searching for horizon
+        buffer = int(self.cfg.args.max_range * 1000 * self.cfg.args.res)
+        s = int(2*buffer + self.size)
+        surf = np.zeros((s,s))
+        surf[buffer:-buffer,buffer:-buffer] = copy.copy(self.surface)
+        
+        # Loop through azimuths and compute horizon for all points on surface with CUDA raytracing code
+        # TODO: figure out how to get CUDA to work with a version that computes horizons for all surface points and azimuths at once
+        for i in range(len(self.azims)):
+            a = np.array([self.azims[i]])
+            elevs = raytrace_horizon(surf, a, res=self.cfg.args.res, max_range=self.cfg.args.max_range, min_elev=self.cfg.args.min_elev, elev_delta=self.cfg.args.elev_delta)
+            elevs[np.abs(elevs-self.cfg.args.min_elev) < 0.0001] = np.nan # if too close to minimum elevation, return NaN
+            self.elev_db[i,...] = copy.copy(elevs[...,0]) # copy results to elevation database
+
+    # Get illumination map for one row of ephemeris data
+    # According to this paper: file:///home/margareh/Zotero/storage/QF8G24NM/S0019103514004278.html#s0020
+    # the sun seen from the lunar horizon has an angular diameter of ~ 0.53 degrees
+    # will use this to compute how much of the solar disk is visible
+    # above and below the elevation from the ephemeris data
+    def get_illumin(self, row):
+
+        # Solar parameters
+        sun_rad_deg = self.cfg.args.solar_disc_angle / 2
+        sun_rad_sq = sun_rad_deg ** 2
+        sun_area_degsq = np.pi * sun_rad_sq
+
+        # Current position of sun relative to local frames
+        v_local = latlon2enu(row.sun_sublat, row.sun_sublon, row.sun_range * KM_AU * 1000, self.lats, self.lons, deg=True, esu=True)
+        _, elev, azim = cartesian2spherical(v_local[0,...], v_local[1,...], v_local[2,...], deg=True)
+        elev = elev.reshape(self.elev_db[0,...].shape)
+        azim = azim.reshape(self.elev_db[0,...].shape)
+
+        # Horizon elevations for this azimuth
+        azim_low = np.floor(azim).astype(int)
+        azim_high = np.ceil(azim).astype(int)
+        azim_low[azim_low > 359] -= 360
+        azim_high[azim_high > 359] -= 360
+
+        horizon_elev_low = np.squeeze(np.take_along_axis(self.elev_db, azim_low[None,...], axis=0))
+        horizon_elev_high = np.squeeze(np.take_along_axis(self.elev_db, azim_high[None,...], axis=0))
+        horizon_elev = (horizon_elev_low + horizon_elev_high) / 2
+        # print(horizon_elev.shape)
+
+        # Solar elevation for low and high points on solar disc
+        sun_elev_low = elev - sun_rad_deg
+        sun_elev_high = elev + sun_rad_deg
+
+        # Area under chord across solar disc at average terrain elevation
+        all_lit = (horizon_elev < sun_elev_low)
+        all_dark = (horizon_elev > sun_elev_high)
+        lower_disc = (sun_elev_low < horizon_elev) * (horizon_elev < elev)
+        h = sun_elev_high - horizon_elev
+        # print(lower_disc.shape)
+        # print(h.shape)
+        h[lower_disc] = horizon_elev[lower_disc] - sun_elev_low[lower_disc]
+
+        # catching warnings here because they're annoying and I deal with them afterwards
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            lit_area_degsq = sun_rad_sq * np.arccos(1 - (h / sun_rad_deg)) - (sun_rad_deg - h) * np.sqrt(sun_rad_sq - (sun_rad_deg - h)**2)
+
+        lit_area_degsq[lower_disc] = sun_area_degsq - lit_area_degsq[lower_disc]
+        lit_area_degsq[all_dark] = 0.0
+        lit_area_degsq[all_lit] = sun_area_degsq
+
+        return lit_area_degsq
+
+    # compute the illumination fraction for a given terrain model
+    def illuminate(self):
+        
+        # TODO: figure out how to get multiprocessing to work so we don't have to use pandas apply
+        # Calculate illumination
+        # sum_illumin = np.zeros_like(self.surface)
+        illumin = self.eph_df.apply(lambda row: self.get_illumin(row), axis=1)
+        # with Pool(8) as p:
+        #     results = [p.apply_async(get_illumin(row), [row]) for row in self.eph_df.itertuples(index=False, name=None)]
+        #     for r in results:
+        #         out = r.get()
+        #         print(out.shape)
+        
+        # PSR mask
+        self.illumin_frac = np.sum(illumin, axis=0) / len(self.eph_df)
+        # self.illumin_frac = sum_illumin / len(self.eph_df)
+        self.psr = (self.illumin_frac < self.cfg.args.psr_threshold)
+        # print(self.illumin_frac.shape)
+        # print(self.psr.shape)
+
 
     # save crater dataframe and plots
     def save(self):
@@ -238,12 +319,35 @@ class LvSim():
         time = str(int(self.t*1e3))
 
         # save crater dataframe without surfaces
-        # self.crater_df.drop("surface", axis=1, inplace=True)
-        # to_file(self.crater_df, os.path.join(self.cfg.args.outpath, 'crater_list_'+time+'.csv'), False)
+        crater_df_small = self.crater_df.drop("surface", axis=1)
+        to_file(crater_df_small, os.path.join(self.cfg.args.outpath, 'crater_list_'+time+'.csv'), False)
+
+        # save surface and illumination
+        np.savez_compressed(os.path.join(self.cfg.args.outpath, 'maps_'+time+'.npz'), surface=self.surface, illumin_frac=self.illumin_frac, psr=self.psr)
 
         # save plot of surface
-        fig, ax = plt.subplots()
-        ax.imshow(self.surface, cmap='terrain')
+        fig, ax = plt.subplots(1,3)
+        
+        im0 = ax[0].imshow(self.surface, cmap='terrain')
+        im1 = ax[1].imshow(self.illumin_frac, cmap='inferno', vmin=0, vmax=1)
+        im2 = ax[2].imshow(self.psr, cmap='gray', vmin=0, vmax=1)
+
+        div0 = make_axes_locatable(ax[0])
+        div1 = make_axes_locatable(ax[1])
+        div2 = make_axes_locatable(ax[2])
+
+        cax0 = div0.append_axes('right', size='5%', pad=0.05)
+        cax1 = div1.append_axes('right', size='5%', pad=0.05)
+        cax2 = div2.append_axes('right', size='5%', pad=0.05)
+
+        fig.colorbar(im0, cax=cax0, orientation='vertical')
+        fig.colorbar(im1, cax=cax1, orientation='vertical')
+        fig.colorbar(im2, cax=cax2, orientation='vertical')
+
+        ax[0].set_title('Surface')
+        ax[1].set_title('Illumination Fraction')
+        ax[2].set_title('PSR Mask')
+        
         if self.cfg.args.plot:
             plt.show()
         else:

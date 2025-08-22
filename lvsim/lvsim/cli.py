@@ -12,7 +12,7 @@ Example:
 """
 
 import argparse
-from lvsim import LvSim
+from lvsim.lvsim import LvSim
 from lvsim.utils import LvSimCfg
 
 def run():
