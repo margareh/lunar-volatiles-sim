@@ -12,3 +12,6 @@
 [submodule "diffusion_cuda"]
 	path = diffusion_cuda
 	url = git@github.com:margareh/diffusion_cuda.git
+[submodule "illumination_cuda"]
+	path = illumination_cuda
+	url = git@github.com:margareh/illumination_cuda.git
