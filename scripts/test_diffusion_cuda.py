@@ -76,8 +76,9 @@ if __name__ == "__main__":
     # comparison
     ratio_compare = np.array([crater_df['d/D'].values.tolist(), new_ratios.tolist()]).T
     diff = ratio_compare[:,0] - ratio_compare[:,1]
-    print(ratio_compare)
-    print(diff)
+    # print(ratio_compare)
+    print(np.mean(diff))
+    print(np.sum(diff))
 
     fig, ax = plt.subplots(1,2)
     ax[0].imshow(surface, cmap='terrain')
@@ -85,4 +86,6 @@ if __name__ == "__main__":
     ax[0].set_title('synthterrain')
     ax[1].set_title('diffusion_cuda')
 
-    plt.show()
+    # plt.show()
+    plt.savefig('../figs/diffusion_comparison.png', dpi=100, bbox_inches='tight')
+    plt.close()
