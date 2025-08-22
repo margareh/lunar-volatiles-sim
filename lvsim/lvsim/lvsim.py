@@ -21,7 +21,7 @@ from diffusion.diffusion import diffusion_cuda
 from synthterrain.crater import functions, determine_production_function, random_points, to_file
 from synthterrain.crater.diffusion import make_crater_field
 
-from utils import LvSimCfg
+from lvsim.utils import LvSimCfg
 
 
 # crater profile copied from FTmod_Crater class in synthterrain
@@ -181,7 +181,6 @@ class LvSim():
         max_count = int(self.prod_fn.csfd(self.cfg.args.d_lim[0]) * self.poly.area * self.cfg.args.time_delta)
         size = max_count - min_count
         diameters = []
-        print(size)
 
         while len(diameters) != size:
             d = self.prod_fn.rvs(size=(size - len(diameters)))
@@ -211,6 +210,9 @@ class LvSim():
         else:
             all_df = copy.copy(new_df)
 
+        # for i in range(len(all_df)):
+        #     print(all_df["surface"][i].shape)
+
         # Apply diffusion model to craters
         surfs_np = np.array(all_df["surface"].tolist())
         new_ratios, new_surfs = diffusion_cuda(all_df["diameter"], all_df["d/D"], all_df["age"], surfs_np, D=self.cfg.args.domain_size)
@@ -220,7 +222,7 @@ class LvSim():
         all_df["surface"] = [s for s in new_surfs[:,...]]
 
         if len(old_df) > 0:
-            all_df["new" == False]["age"] = self.crater_df["age"] + self.cfg.args.time_delta
+            all_df.loc[all_df.new == False, "age"] = self.crater_df["age"] + self.cfg.args.time_delta
 
         drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
         all_df.drop(drop_inds, axis=0, inplace=True)
@@ -236,8 +238,8 @@ class LvSim():
         time = str(int(self.t*1e3))
 
         # save crater dataframe without surfaces
-        self.crater_df.drop("surface", axis=1, inplace=True)
-        to_file(self.crater_df, os.path.join(self.cfg.args.outpath, 'crater_list_'+time+'.csv'), False)
+        # self.crater_df.drop("surface", axis=1, inplace=True)
+        # to_file(self.crater_df, os.path.join(self.cfg.args.outpath, 'crater_list_'+time+'.csv'), False)
 
         # save plot of surface
         fig, ax = plt.subplots()
