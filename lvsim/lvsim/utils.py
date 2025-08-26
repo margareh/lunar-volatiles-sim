@@ -84,7 +84,7 @@ class LvSimCfg():
                             help='Minimum elevation angle for horizon computation in degrees')
         parser.add_argument('--max_range',
                             type=float,
-                            default=0.02,
+                            default=0.2,
                             help='Maximum range for searching for horizon in km')
         parser.add_argument('--elev_delta',
                             type=float,

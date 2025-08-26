@@ -289,6 +289,7 @@ class LvSim():
         lit_area_degsq[lower_disc] = sun_area_degsq - lit_area_degsq[lower_disc]
         lit_area_degsq[all_dark] = 0.0
         lit_area_degsq[all_lit] = sun_area_degsq
+        lit_area_degsq /= sun_area_degsq
 
         return lit_area_degsq
 
