@@ -6,6 +6,7 @@ import math
 import random
 import copy
 import warnings
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -13,6 +14,7 @@ from pyproj import Proj, CRS
 from shapely.geometry import box
 from rasterio.transform import from_origin
 from rasterio.windows import from_bounds
+from tqdm import tqdm
 
 from raytrace.raytrace import raytrace_horizon
 from illumination.illumination import illuminate_cuda
@@ -96,7 +98,8 @@ def illuminate(eph_df, elev_db, grid_ll, cfg):
     # sum_illumin = np.zeros_like(self.surface)
     # i = 722
     # illumin = get_illumin(eph_df.iloc[[i]], cfg, grid_ll[:,0], grid_ll[:,0], elev_db)
-    illumin = eph_df.apply(lambda row: get_illumin(row, cfg, grid_ll[:,0], grid_ll[:,1], elev_db), axis=1)
+    tqdm.pandas(desc="Pandas-based illumination")
+    illumin = eph_df.progress_apply(lambda row: get_illumin(row, cfg, grid_ll[:,0], grid_ll[:,1], elev_db), axis=1)
     # with Pool(8) as p:
     #     results = [p.apply_async(get_illumin(row), [row]) for row in self.eph_df.itertuples(index=False, name=None)]
     #     for r in results:
@@ -188,11 +191,12 @@ if __name__ == "__main__":
     # TODO: figure out how to get CUDA to work with a version that computes horizons for all surface points and azimuths at once
     print("Making horizon database")
     elev_db = np.zeros((len(azims), size, size))
-    for i in range(len(azims)):
+    for i in tqdm(range(len(azims))):
         a = np.array([azims[i]])
         elevs = raytrace_horizon(surf, a, res=cfg.args.res, max_range=cfg.args.max_range, min_elev=cfg.args.min_elev, elev_delta=cfg.args.elev_delta)
         elevs[np.abs(elevs-cfg.args.min_elev) < 0.0001] = np.nan # if too close to minimum elevation, return NaN
         elev_db[i,...] = copy.copy(elevs[...,0]) # copy results to elevation database
+    
     # print(elev_db.shape)
 
     # fig, ax = plt.subplots(1,2)
@@ -239,7 +243,10 @@ if __name__ == "__main__":
 
     # illumination with cuda
     print("Running CUDA illumination code")
+    start = time.time()
     illumin_frac, psr = illuminate_cuda(elev_db, eph, grid_ll, psr_threshold=cfg.args.psr_threshold)
+    end = time.time()
+    print("Elapsed time to illuminate with CUDA: %4.2f" % (end-start))
 
     # compare the two
     fig, ax = plt.subplots(2,2)

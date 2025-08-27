@@ -4,6 +4,7 @@
 
 import math
 import random
+import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -46,7 +47,7 @@ if __name__ == "__main__":
         min_d=cfg.args.d_lim[0],
         max_d=cfg.args.d_lim[1],
         return_surfaces=True,
-        by_bin=False
+        by_bin=False,
     )
     # print(self.crater_df)
 
@@ -66,7 +67,10 @@ if __name__ == "__main__":
     init_df['surface'] = init_df.apply(lambda row: profile(row["d/D"], row["diameter"], D=cfg.args.domain_size), axis=1)
 
     surfs_np = np.array(init_df["surface"].tolist())
+    start = time.time()
     new_ratios, new_surfs = diffusion_cuda(init_df["diameter"], init_df["d/D"], init_df["age"], surfs_np, D=cfg.args.domain_size)
+    end = time.time()
+    print("Elapsed time from crater diffusion with CUDA: %4.2f" % (end-start))
 
     init_df['d/D'] = new_ratios
     init_df["surface"] = [s for s in new_surfs[:,...]]
