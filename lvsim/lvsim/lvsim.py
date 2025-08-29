@@ -15,8 +15,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from multiprocessing import Pool
 from pyproj import Proj, CRS
 from shapely.geometry import box
-from rasterio.transform import from_origin
-from rasterio.windows import from_bounds
+from rasterio.transform import from_origin, rowcol
+from rasterio.windows import from_bounds, get_data_window, Window
+from skimage.transform import rescale
+from tqdm import tqdm
 
 from diffusion.diffusion import diffusion_cuda
 from raytrace.raytrace import raytrace_horizon
@@ -50,6 +52,51 @@ def load_ephemeris_data(file):
     eph_df = pd.read_csv(file, index_col=False, names=cols, dtype=dtypes, parse_dates=['date'], sep=',')
     eph_df = eph_df[['date', 'sun_sublon', 'sun_sublat', 'sun_range']]
     return eph_df
+
+
+# Make a crater heightmap based on initial surface and dataframe of craters
+def make_heightmap(df, init_surface, tf):
+
+    # transform things to numpy
+    diams = df["diameter"].to_numpy()
+    # print(diams) # 7293
+    surf_list = df["surface"].values
+    surfaces = np.stack(surf_list, axis=-1)
+    w_init = get_data_window(init_surface)
+    # print(surfaces.shape) # N x N x D
+
+    # compute resolution of each row
+    surf_gsd = 2 * diams / surfaces.shape[0] # 2 * diameter / surface shape
+
+    # transform row and column values of center point of crater
+    r, c = rowcol(tf, df['x'].values, df['y'].values)
+
+    # process all surfaces in the model
+    new_surf = copy.copy(init_surface)
+    for i in tqdm(range(len(diams))):
+        # rescale the surface
+        surf_rescaled = rescale(surfaces[...,i], surf_gsd[i] / tf.a, preserve_range=True, anti_aliasing=True)
+
+        # compute bounds
+        h, w = surf_rescaled.shape
+        col_off = c[i] - int(w / 2)
+        row_off = r[i] - int(h / 2)
+
+        # compare to bounds of terrain model and adjust if don't fully intersect
+        w_tm = Window(0, 0, w_init.width, w_init.height)
+        w_surf = Window(col_off - w_init.col_off, row_off - w_init.row_off, w, h)
+        w_tm2 = Window(w_init.col_off - col_off, w_init.row_off - row_off, w_init.width, w_init.height)
+        w_surf2 = Window(0, 0, w, h)
+
+        tm_intersect = w_tm.intersection(w_surf)
+        surf_intersect = w_surf2.intersection(w_tm2)
+        tm_slices = tm_intersect.toslices()
+        surf_slices = surf_intersect.toslices()
+
+        # add to new surface at appropriate location
+        new_surf[tm_slices] += surf_rescaled[surf_slices]
+
+    return new_surf
 
 
 # class for lunar volatiles sim
