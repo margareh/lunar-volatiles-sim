@@ -10,7 +10,9 @@ import random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import torch
 
+from torch.nn.functional import interpolate
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from multiprocessing import Pool
 from pyproj import Proj, CRS
@@ -55,48 +57,88 @@ def load_ephemeris_data(file):
 
 
 # Make a crater heightmap based on initial surface and dataframe of craters
+# This assumes that we aren't given an initial surface
 def make_heightmap(df, init_surface, tf):
 
     # transform things to numpy
-    diams = df["diameter"].to_numpy()
+    diams = df["diameter"].values
     # print(diams) # 7293
     surf_list = df["surface"].values
-    surfaces = np.stack(surf_list, axis=-1)
-    w_init = get_data_window(init_surface)
-    # print(surfaces.shape) # N x N x D
+    surfaces = torch.tensor(np.stack(surf_list, axis=-1))
+    # print(surfaces.shape)
+    D = surfaces.shape[0]
+    C = surfaces.shape[-1]
+    surfaces = surfaces.reshape((1,1,D,D,C)) # torch needs a minibatch and channel dimension for interpolate
 
     # compute resolution of each row
-    surf_gsd = 2 * diams / surfaces.shape[0] # 2 * diameter / surface shape
+    scales = 2 * diams / (D * tf.a) # 2 * diameter / surface shape * r
 
     # transform row and column values of center point of crater
     r, c = rowcol(tf, df['x'].values, df['y'].values)
 
     # process all surfaces in the model
-    new_surf = copy.copy(init_surface)
-    for i in tqdm(range(len(diams))):
+    N, M = init_surface.shape
+    new_surf = torch.zeros((N, M, C), device='cuda', dtype=torch.float32)
+    for i in tqdm(range(C)):
         # rescale the surface
-        surf_rescaled = rescale(surfaces[...,i], surf_gsd[i] / tf.a, preserve_range=True, anti_aliasing=True)
+        # surf_rescaled = rescale(surfaces[...,i], scales[i], preserve_range=True, anti_aliasing=True)
+        surf_rescaled = interpolate(surfaces[...,i].cuda(), scale_factor=scales[i], mode='bilinear', antialias=True)
 
         # compute bounds
-        h, w = surf_rescaled.shape
-        col_off = c[i] - int(w / 2)
-        row_off = r[i] - int(h / 2)
+        _, _, h, w = surf_rescaled.shape
+        start_col = c[i] - int(w / 2)
+        start_row = r[i] - int(h / 2)
+        end_col = start_col + w
+        end_row = start_row + h
+        j = 0
+        k = 0
 
-        # compare to bounds of terrain model and adjust if don't fully intersect
-        w_tm = Window(0, 0, w_init.width, w_init.height)
-        w_surf = Window(col_off - w_init.col_off, row_off - w_init.row_off, w, h)
-        w_tm2 = Window(w_init.col_off - col_off, w_init.row_off - row_off, w_init.width, w_init.height)
-        w_surf2 = Window(0, 0, w, h)
+        # print(start_col)
+        # print(end_col)
+        # print(w)
+        
+        # print(start_row)
+        # print(end_row)
+        # print(h)
 
-        tm_intersect = w_tm.intersection(w_surf)
-        surf_intersect = w_surf2.intersection(w_tm2)
-        tm_slices = tm_intersect.toslices()
-        surf_slices = surf_intersect.toslices()
+        # adjust so we don't go out of bounds
+        if start_col < 0:
+            # print("CASE 1")
+            k = w-end_col
+            start_col = 0
+            w = end_col
+        
+        if end_col > M-1:
+            # print("CASE 2")
+            end_col = M-1
+            w = M-start_col-1
+        
+        if start_row < 0:
+            # print("CASE 3")
+            j = h-end_row
+            start_row = 0
+            h = end_row
+        
+        if end_row > N-1:
+            # print("CASE 4")
+            end_row = N-1
+            h = N-start_row-1
+        
+        # print(start_col)
+        # print(end_col)
+        # print(w)
+        # print(start_row)
+        # print(end_row)
+        # print(h)
+        # print("\n")
 
-        # add to new surface at appropriate location
-        new_surf[tm_slices] += surf_rescaled[surf_slices]
+        # update
+        new_surf[start_row:end_row, start_col:end_col, i] = surf_rescaled[...,j:j+h,k:k+w].reshape((h,w))
 
-    return new_surf
+    # sum over all craters
+    new_surf = torch.sum(new_surf, axis=-1)
+
+    return new_surf.cpu().numpy() + init_surface
 
 
 # class for lunar volatiles sim
