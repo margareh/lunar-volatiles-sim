@@ -7,6 +7,7 @@ import math
 import copy
 import warnings
 import random
+import torch
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -97,6 +98,34 @@ def make_heightmap(df, init_surface, tf):
         new_surf[tm_slices] += surf_rescaled[surf_slices]
 
     return new_surf
+
+
+def compute_elev_azim(eph_df, grid_ll, device='cpu'):
+
+    if device == 'cuda':
+        torch.cuda.empty_cache()
+        sun_lat = torch.tensor(eph_df['sun_sublat'].values, device=device)
+        sun_lon = torch.tensor(eph_df['sun_sublon'].values, device=device)
+        sun_range = torch.tensor(eph_df['sun_range'].values, device=device)
+        grid_lat = torch.tensor(grid_ll[:,0], device=device)
+        grid_lon = torch.tensor(grid_ll[:,1], device=device)
+
+    # compute local ENU position of sun for each grid point
+    v_local = latlon2enu(sun_lat, sun_lon, sun_range * KM_AU * 1000, grid_lat, grid_lon, deg=True)
+
+    if device == 'cuda':
+        # remove some things in between runs to avoid out of memory errors
+        del(sun_lat)
+        del(sun_lon)
+        del(sun_range)
+        del(grid_lat)
+        del(grid_lon)
+    
+    # convet solar position into elevation and azimuth
+    _, elevs, azims = cartesian2spherical(v_local[0,...], v_local[1,...], v_local[2,...], deg=True)
+
+    return elevs.cpu().numpy(), azims.cpu().numpy()
+
 
 
 # class for lunar volatiles sim

@@ -20,7 +20,7 @@ from diffusion.diffusion import diffusion_cuda
 from raytrace.raytrace import raytrace_horizon
 from illumination.illumination import illuminate_cuda
 
-from lvsim.lvsim import profile, stopar_fresh_dd, load_ephemeris_data
+from lvsim.lvsim import profile, stopar_fresh_dd, load_ephemeris_data, compute_elev_azim
 from lvsim.utils import LvSimCfg, latlon2enu, cartesian2spherical
 
 from synthterrain import crater
@@ -227,6 +227,8 @@ if __name__ == "__main__":
     eph_df = load_ephemeris_data(cfg.args.eph_file)
     eph = eph_df[['sun_sublat', 'sun_sublon', 'sun_range']].to_numpy() # lat long range
 
+    elevs, azims = compute_elev_azim(eph_df, grid_ll, device='cuda')
+
     # elevs = []
     # azims = []
     # for _, row in eph_df.iterrows():
@@ -238,23 +240,23 @@ if __name__ == "__main__":
 
     # elevs_np = np.array(elevs)
     # azims_np = np.array(azims)
-    # t = np.arange(0, len(elevs))
+    t = np.arange(0, len(elevs))
 
     # print(np.min(elevs_np))
     # print(np.max(elevs_np))
     # print(np.min(azims_np))
     # print(np.max(azims_np))
 
-    # fig, ax = plt.subplots(2,2)
-    # ax[0,0].plot(t[:1000], elevs_np[:1000])
-    # ax[0,0].set_title('Elevations, SP')
-    # ax[1,0].plot(t[:1000], azims_np[:1000])
-    # ax[1,0].set_title('Azimuths, SP')
-    # ax[0,1].plot(t[:1000], eph_df['sun_sublat'].values[:1000])
-    # ax[0,1].set_title('Subsolar Latitude')
-    # ax[1,1].plot(t[:1000], eph_df['sun_sublon'].values[:1000])
-    # ax[1,1].set_title('Subsolar Longitude')
-    # plt.show()
+    fig, ax = plt.subplots(2,2)
+    ax[0,0].plot(t[:1000], elevs[:1000])
+    ax[0,0].set_title('Elevations, SP')
+    ax[1,0].plot(t[:1000], azims[:1000])
+    ax[1,0].set_title('Azimuths, SP')
+    ax[0,1].plot(t[:1000], eph_df['sun_sublat'].values[:1000])
+    ax[0,1].set_title('Subsolar Latitude')
+    ax[1,1].plot(t[:1000], eph_df['sun_sublon'].values[:1000])
+    ax[1,1].set_title('Subsolar Longitude')
+    plt.show()
 
     # illumination with old model
     print("Running old illumination code")
