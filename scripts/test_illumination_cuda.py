@@ -16,16 +16,16 @@ from rasterio.transform import from_origin
 from rasterio.windows import from_bounds
 from tqdm import tqdm
 
+from diffusion.diffusion import diffusion_cuda
 from raytrace.raytrace import raytrace_horizon
 from illumination.illumination import illuminate_cuda
 
-from lvsim.lvsim import load_ephemeris_data
-from lvsim.utils import LvSimCfg
+from lvsim.lvsim import profile, stopar_fresh_dd, load_ephemeris_data
 from lvsim.utils import LvSimCfg, latlon2enu, cartesian2spherical
 
 from synthterrain import crater
-from synthterrain.crater import functions
 from synthterrain.crater.diffusion import make_crater_field
+from synthterrain.crater import functions, determine_production_function, generate_diameters, generate_ages, random_points
 
 KM_AU = 149597870.700
 WKT_STR = """PROJCS["PolarStereographic Moon",GEOGCS["D_Moon",DATUM["D_Moon",SPHEROID["Moon_polarRadius",1737400,0]],PRIMEM["Reference_Meridian",180],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Polar_Stereographic"],PARAMETER["latitude_of_origin",-90],PARAMETER["central_meridian",0],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1],AXIS["Easting",NORTH],AXIS["Northing",NORTH]]"""
@@ -137,15 +137,34 @@ if __name__ == "__main__":
 
     # diffusion with synthterrain to give us something interesting
     print("Initializing crater list")
-    crater_df = crater.synthesize(
-        crater_dist,
-        polygon=poly,
-        min_d=cfg.args.d_lim[0],
-        max_d=cfg.args.d_lim[1],
-        return_surfaces=True,
-        by_bin=False
-    )
-    # print(self.crater_df)
+    # crater_df = crater.synthesize(
+    #     crater_dist,
+    #     polygon=poly,
+    #     min_d=cfg.args.d_lim[0],
+    #     max_d=cfg.args.d_lim[1],
+    #     return_surfaces=True,
+    #     by_bin=False
+    # )
+    # # print(self.crater_df)
+
+    production_fn = determine_production_function(crater_dist.a, crater_dist.b)
+    diameters = generate_diameters(crater_dist, poly.area, cfg.args.d_lim[0], cfg.args.d_lim[1])
+    crater_df = generate_ages(diameters, production_fn.csfd, crater_dist.csfd)
+    xlist, ylist = random_points(poly, len(diameters))
+    crater_df['x'] = xlist
+    crater_df['y'] = ylist
+    crater_df['d/D'] = stopar_fresh_dd(crater_df['diameter'])
+    crater_df['surface'] = crater_df.apply(lambda row: profile(row["d/D"], row["diameter"], D=cfg.args.domain_size), axis=1)
+
+    surfs_np = np.array(crater_df["surface"].tolist())
+    start = time.time()
+    new_ratios, new_surfs = diffusion_cuda(crater_df["diameter"], crater_df["d/D"], crater_df["age"], surfs_np, D=cfg.args.domain_size)
+    end = time.time()
+    print("Elapsed time from crater diffusion with CUDA: %4.2f" % (end-start))
+
+    crater_df['d/D'] = new_ratios
+    crater_df["surface"] = [s for s in new_surfs[:,...]]
+
 
     # surface from synthterrain crater list
     surface = make_crater_field(
