@@ -54,6 +54,39 @@ def load_ephemeris_data(file):
     return eph_df
 
 
+def rescale_surface(args):
+
+    # parse args
+    surface = args[0]
+    scale = args[1]
+    c = args[2]
+    r = args[3]
+    w_init = args[4]
+
+    # rescale the surface
+    surf_rescaled = rescale(surface, scale, preserve_range=True, anti_aliasing=True)
+
+    # compute bounds
+    h, w = surf_rescaled.shape
+    col_off = c - int(w / 2)
+    row_off = r - int(h / 2)
+
+    # compare to bounds of terrain model and adjust if don't fully intersect
+    w_tm = Window(0, 0, w_init.width, w_init.height)
+    w_surf = Window(col_off - w_init.col_off, row_off - w_init.row_off, w, h)
+    w_tm2 = Window(w_init.col_off - col_off, w_init.row_off - row_off, w_init.width, w_init.height)
+    w_surf2 = Window(0, 0, w, h)
+
+    tm_intersect = w_tm.intersection(w_surf)
+    surf_intersect = w_surf2.intersection(w_tm2)
+    tm_slices = tm_intersect.toslices()
+    surf_slices = surf_intersect.toslices()
+
+    return (surf_rescaled[surf_slices], tm_slices)
+
+    # # add to new surface at appropriate location
+    # new_surf[tm_slices] += surf_rescaled[surf_slices]
+
 # Make a crater heightmap based on initial surface and dataframe of craters
 def make_heightmap(df, init_surface, tf):
 
@@ -73,28 +106,19 @@ def make_heightmap(df, init_surface, tf):
 
     # process all surfaces in the model
     new_surf = copy.copy(init_surface)
-    for i in tqdm(range(len(diams))):
-        # rescale the surface
-        surf_rescaled = rescale(surfaces[...,i], surf_gsd[i] / tf.a, preserve_range=True, anti_aliasing=True)
 
-        # compute bounds
-        h, w = surf_rescaled.shape
-        col_off = c[i] - int(w / 2)
-        row_off = r[i] - int(h / 2)
+    # surface = args[0]
+    # scale = args[1]
+    # c = args[2]
+    # r = args[3]
+    # w_init = args[4]
 
-        # compare to bounds of terrain model and adjust if don't fully intersect
-        w_tm = Window(0, 0, w_init.width, w_init.height)
-        w_surf = Window(col_off - w_init.col_off, row_off - w_init.row_off, w, h)
-        w_tm2 = Window(w_init.col_off - col_off, w_init.row_off - row_off, w_init.width, w_init.height)
-        w_surf2 = Window(0, 0, w, h)
-
-        tm_intersect = w_tm.intersection(w_surf)
-        surf_intersect = w_surf2.intersection(w_tm2)
-        tm_slices = tm_intersect.toslices()
-        surf_slices = surf_intersect.toslices()
-
-        # add to new surface at appropriate location
-        new_surf[tm_slices] += surf_rescaled[surf_slices]
+    with Pool(8) as p:
+        args = [(surfaces[...,i], surf_gsd[i] / tf.a, c[i], r[i], w_init) for i in range(len(diams))]
+        out = p.map(rescale_surface, args) # this produces a list of results
+    
+    for i in range(len(diams)):
+        new_surf[out[i][1]] += out[i][0]
 
     return new_surf
 
