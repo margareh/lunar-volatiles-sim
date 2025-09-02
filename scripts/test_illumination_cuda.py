@@ -8,6 +8,7 @@ import copy
 import warnings
 import time
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from pyproj import Proj, CRS
@@ -17,14 +18,14 @@ from rasterio.windows import from_bounds
 from tqdm import tqdm
 
 from raytrace.raytrace import raytrace_horizon
+from diffusion.diffusion import diffusion_cuda
 from illumination.illumination import illuminate_cuda
 
-from lvsim.lvsim import load_ephemeris_data
-from lvsim.utils import LvSimCfg
+from lvsim.lvsim import profile, stopar_fresh_dd, load_ephemeris_data, make_heightmap
 from lvsim.utils import LvSimCfg, latlon2enu, cartesian2spherical
 
 from synthterrain import crater
-from synthterrain.crater import functions
+from synthterrain.crater import functions, determine_production_function, generate_diameters, generate_ages, random_points
 from synthterrain.crater.diffusion import make_crater_field
 
 KM_AU = 149597870.700
@@ -137,22 +138,46 @@ if __name__ == "__main__":
 
     # diffusion with synthterrain to give us something interesting
     print("Initializing crater list")
-    crater_df = crater.synthesize(
-        crater_dist,
-        polygon=poly,
-        min_d=cfg.args.d_lim[0],
-        max_d=cfg.args.d_lim[1],
-        return_surfaces=True,
-        by_bin=False
-    )
+    # crater_df = crater.synthesize(
+    #     crater_dist,
+    #     polygon=poly,
+    #     min_d=cfg.args.d_lim[0],
+    #     max_d=cfg.args.d_lim[1],
+    #     return_surfaces=True,
+    #     by_bin=False
+    # )
     # print(self.crater_df)
+    production_fn = determine_production_function(crater_dist.a, crater_dist.b)
+    diameters = generate_diameters(crater_dist, poly.area, cfg.args.d_lim[0], cfg.args.d_lim[1])
+    crater_df = generate_ages(diameters, production_fn.csfd, crater_dist.csfd)
+    xlist, ylist = random_points(poly, len(diameters))
+    crater_df['x'] = xlist
+    crater_df['y'] = ylist
+    crater_df['d/D'] = stopar_fresh_dd(crater_df['diameter'])
+    crater_df['surface'] = crater_df.apply(lambda row: profile(row["d/D"], row["diameter"], D=cfg.args.domain_size), axis=1)
+
+    surfs_np = np.array(crater_df["surface"].tolist())
+    start = time.time()
+    new_ratios, new_surfs = diffusion_cuda(crater_df["diameter"], crater_df["d/D"], crater_df["age"], surfs_np, D=cfg.args.domain_size)
+    end = time.time()
+    print("Elapsed time from crater diffusion with CUDA: %4.2f" % (end-start))
+
+    crater_df['d/D'] = new_ratios
+    crater_df["surface"] = [s for s in new_surfs[:,...]]
 
     # surface from synthterrain crater list
     surface = make_crater_field(
         crater_df, np.zeros((math.ceil(window.height), math.ceil(window.width))), transform
     )
+    # surface_new = make_heightmap(crater_df, np.zeros((math.ceil(window.height), math.ceil(window.width))), transform)
 
-    # plt.imshow(surface)
+    # fig, ax = plt.subplots(1,3)
+    # ax[0].imshow(surface)
+    # ax[1].imshow(surface_new)
+    # ax[2].imshow(np.abs(surface-surface_new))
+    # ax[0].set_title("Old Surface Plot")
+    # ax[1].set_title("New Surface Plot")
+    # ax[2].set_title("Difference")
     # plt.show()
 
     # grid with lat longs
@@ -166,8 +191,8 @@ if __name__ == "__main__":
     proj = Proj(crs)
     lons, lats = proj(-grid[:,1], grid[:,0], inverse=True)
     lons += 180
-    grid_ll = np.dstack((lats, lons)).reshape((size*size, 2))
-    # print(grid_ll)
+    grid_ll = np.dstack((lats, lons, surface.reshape((size*size)))).reshape((size, size, 3))
+    # print(grid_ll[0:2, 0:2, :])
 
     # fig, ax = plt.subplots(1,2)
     # ax[0].imshow(grid_ll[:,0].reshape((size, size)))
@@ -175,27 +200,27 @@ if __name__ == "__main__":
     # plt.show()
 
     # since the surface starts out as flat, we can illuminate it easily by setting elevation to 0 deg for all azimuths
-    azims = np.arange(0, 360, cfg.args.azim_res)
+    # azims = np.arange(0, 360, cfg.args.azim_res)
 
     # make horizon database
     # TODO: extrapolate based on nearest points instead of making flat surface
-    buffer = int(cfg.args.max_range * 1000 * cfg.args.res)
-    s = int(2*buffer + size)
-    surf = np.zeros((s,s))
-    surf[buffer:-buffer,buffer:-buffer] = copy.copy(surface)
+    # buffer = int(cfg.args.max_range * 1000 * cfg.args.res)
+    # s = int(2*buffer + size)
+    # surf = np.zeros((s,s))
+    # surf[buffer:-buffer,buffer:-buffer] = copy.copy(surface)
 
     # plt.imshow(surface)
     # plt.show()
     
     # Loop through azimuths and compute horizon for all points on surface with CUDA raytracing code
     # TODO: figure out how to get CUDA to work with a version that computes horizons for all surface points and azimuths at once
-    print("Making horizon database")
-    elev_db = np.zeros((len(azims), size, size))
-    for i in tqdm(range(len(azims))):
-        a = np.array([azims[i]])
-        elevs = raytrace_horizon(surf, a, res=cfg.args.res, max_range=cfg.args.max_range, min_elev=cfg.args.min_elev, elev_delta=cfg.args.elev_delta)
-        elevs[np.abs(elevs-cfg.args.min_elev) < 0.0001] = np.nan # if too close to minimum elevation, return NaN
-        elev_db[i,...] = copy.copy(elevs[...,0]) # copy results to elevation database
+    # print("Making horizon database")
+    # elev_db = np.zeros((len(azims), size, size))
+    # for i in tqdm(range(len(azims))):
+    #     a = np.array([azims[i]])
+    #     elevs = raytrace_horizon(surf, a, res=cfg.args.res, max_range=cfg.args.max_range, min_elev=cfg.args.min_elev, elev_delta=cfg.args.elev_delta)
+    #     elevs[np.abs(elevs-cfg.args.min_elev) < 0.0001] = np.nan # if too close to minimum elevation, return NaN
+    #     elev_db[i,...] = copy.copy(elevs[...,0]) # copy results to elevation database
     
     # print(elev_db.shape)
 
@@ -238,29 +263,42 @@ if __name__ == "__main__":
     # plt.show()
 
     # illumination with old model
-    print("Running old illumination code")
-    illumin_frac_old, psr_old = illuminate(eph_df, elev_db, grid_ll, cfg)
+    # print("Running old illumination code")
+    # illumin_frac_old, psr_old = illuminate(eph_df, elev_db, grid_ll, cfg)
 
     # illumination with cuda
     print("Running CUDA illumination code")
     start = time.time()
-    illumin_frac, psr = illuminate_cuda(elev_db, eph, grid_ll, psr_threshold=cfg.args.psr_threshold)
+    illumin_frac, psr = illuminate_cuda(eph,
+                                        grid_ll,
+                                        psr_threshold=cfg.args.psr_threshold,
+                                        max_range=cfg.args.max_range,
+                                        res=cfg.args.res,
+                                        min_elev=cfg.args.min_elev,
+                                        elev_delta=cfg.args.elev_delta)
     end = time.time()
     print("Elapsed time to illuminate with CUDA: %4.2f" % (end-start))
 
-    # compare the two
-    fig, ax = plt.subplots(2,2)
-
-    # original model
-    ax[0,0].imshow(illumin_frac_old, cmap='inferno')
-    ax[0,1].imshow(psr_old, vmin=0, vmax=1, cmap='gray_r')
-    ax[0,0].set_title('Illumination, Original')
-    ax[0,1].set_title('PSRs, Original')
-
-    # new model
-    ax[1,0].imshow(illumin_frac, cmap='inferno')
-    ax[1,1].imshow(psr, vmin=0, vmax=1, cmap='gray_r')
-    ax[1,0].set_title('Illumination, CUDA')
-    ax[1,1].set_title('PSRs, CUDA')
-
+    fig, ax = plt.subplots(1,2)
+    ax[0].imshow(illumin_frac, cmap='inferno', vmin=0, vmax=1)
+    ax[1].imshow(psr, cmap='gray_r', vmin=0, vmax=1)
+    ax[0].set_title('Illumination')
+    ax[1].set_title('PSR')
     plt.show()
+
+    # # compare the two
+    # fig, ax = plt.subplots(2,2)
+
+    # # original model
+    # ax[0,0].imshow(illumin_frac_old, cmap='inferno')
+    # ax[0,1].imshow(psr_old, vmin=0, vmax=1, cmap='gray_r')
+    # ax[0,0].set_title('Illumination, Original')
+    # ax[0,1].set_title('PSRs, Original')
+
+    # # new model
+    # ax[1,0].imshow(illumin_frac, cmap='inferno')
+    # ax[1,1].imshow(psr, vmin=0, vmax=1, cmap='gray_r')
+    # ax[1,0].set_title('Illumination, CUDA')
+    # ax[1,1].set_title('PSRs, CUDA')
+
+    # plt.show()
