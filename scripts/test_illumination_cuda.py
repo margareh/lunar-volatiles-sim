@@ -191,7 +191,7 @@ if __name__ == "__main__":
     # TODO: figure out how to get CUDA to work with a version that computes horizons for all surface points and azimuths at once
     print("Making horizon database")
     elev_db = np.zeros((len(azims), size, size))
-    for i in tqdm(range(len(azims))):
+    for i in tqdm(range(len(azims)), desc='Horizon raytracing: '):
         a = np.array([azims[i]])
         elevs = raytrace_horizon(surf, a, res=cfg.args.res, max_range=cfg.args.max_range, min_elev=cfg.args.min_elev, elev_delta=cfg.args.elev_delta)
         elevs[np.abs(elevs-cfg.args.min_elev) < 0.0001] = np.nan # if too close to minimum elevation, return NaN
