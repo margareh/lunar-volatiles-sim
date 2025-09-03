@@ -1,6 +1,6 @@
 [submodule "synthterrain"]
 	path = synthterrain
-	url = git@github.com:NeoGeographyToolkit/synthterrain.git
+	url = git@github.com:margareh/synthterrain.git
 [submodule "moonpies"]
 	path = moonpies
 	url = git@github.com:margareh/moonpies.git
