@@ -32,6 +32,9 @@ class LvSimCfg():
                             type=float,
                             default=0.04,
                             help='Depth to diameter ratio threshold for removing old craters')
+        parser.add_argument('--use_prod_fn',
+                            action='store_true',
+                            help='Flag for using the production function directly to generate craters instead of the equilibrium SFD')
 
         # args for synthterrain
         parser.add_argument('--bbox',
