@@ -290,13 +290,12 @@ class LvSim():
         all_df["surface"] = [s for s in new_surfs[:,...]]
 
         if len(old_df) > 0:
-            all_df.loc[all_df.new == False, "age"] = self.crater_df["age"] + self.cfg.args.time_delta * 1e6
+            all_df.loc[all_df.new == False, "age"] += self.cfg.args.time_delta * 1e6
 
         drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
         print("Number of craters, pre-filtering: %d" % (len(all_df)))
         all_df.drop(drop_inds, axis=0, inplace=True)
         self.crater_df = copy.copy(all_df)
-
         print("Current number of craters: %d" % (len(self.crater_df)))
 
         # Update stored surface
