@@ -122,7 +122,7 @@ class LvSimCfg():
 
         # make the outpath directories if necessary
         if os.path.exists(self.args.outpath) == False:
-            os.midkr(self.args.outpath)
+            os.mkdir(self.args.outpath)
 
         # add seed to output file path and make directory
         self.args.outpath = os.path.join(self.args.outpath, str(self.args.seed))
