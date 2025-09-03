@@ -115,9 +115,14 @@ class LvSimCfg():
     # check that args are correct
     def validate_args(self):
 
+        # check the crater equilibrium SFD
         if self.args.csfd not in ['Trask', 'VIPER_Env_Spec']:
             print("Invalid crater SFD provided, defaulting to VIPER_Env_Spec")
             self.args.csfd = 'VIPER_Env_Spec'
+
+        # make the outpath directories if necessary
+        if os.path.exists(self.args.outpath) == False:
+            os.midkr(self.args.outpath)
 
         # add seed to output file path and make directory
         self.args.outpath = os.path.join(self.args.outpath, str(self.args.seed))
