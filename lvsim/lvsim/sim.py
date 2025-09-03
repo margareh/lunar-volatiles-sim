@@ -142,7 +142,7 @@ class LvSim():
         self.crater_dist = getattr(functions, cfg.args.csfd)(a=cfg.args.d_lim[0], b=cfg.args.d_lim[1])
 
         # crater datafame and surface are initially empty and flat
-        self.crater_df = pd.DataFrame(columns=['x','y','diameter','age','d/D','surface'])
+        self.crater_df = pd.DataFrame(columns=['x','y','diameter','age','d/D','surface','new'])
         self.create_surface()
         self.size = self.surface.shape[0]
 
@@ -266,9 +266,11 @@ class LvSim():
         # Set up dataframe for old craters
         old_df = copy.copy(self.crater_df)
         if len(old_df) > 0:
+            prev_ages = old_df["age"].values
             old_df["age"] = self.cfg.args.time_delta * 1e6 # only want to diffuse since last diffusion model (AKA over length of time step)
             old_df["new"] = False
         else:
+            prev_ages = None
             old_df["age"] = None
             old_df["new"] = None
 
@@ -290,7 +292,7 @@ class LvSim():
         all_df["surface"] = [s for s in new_surfs[:,...]]
 
         if len(old_df) > 0:
-            all_df.loc[all_df.new == False, "age"] += self.cfg.args.time_delta * 1e6
+            all_df.loc[all_df.new == False, "age"] = prev_ages + self.cfg.args.time_delta * 1e6
 
         drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
         print("Number of craters, pre-filtering: %d" % (len(all_df)))
