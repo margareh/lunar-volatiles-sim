@@ -13,7 +13,8 @@ from shapely.geometry import box
 from rasterio.transform import from_origin
 from rasterio.windows import from_bounds
 
-from lvsim.lvsim import profile, stopar_fresh_dd, make_heightmap
+from lvsim.crater import profile, stopar_fresh_dd
+from lvsim.sim import make_heightmap
 from lvsim.utils import LvSimCfg
 
 from synthterrain import crater

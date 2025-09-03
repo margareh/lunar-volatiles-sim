@@ -20,10 +20,10 @@ from diffusion.diffusion import diffusion_cuda
 from raytrace.raytrace import raytrace_horizon
 from illumination.illumination import illuminate_cuda
 
-from lvsim.lvsim import profile, stopar_fresh_dd, load_ephemeris_data
+from lvsim.crater import profile, stopar_fresh_dd
+from lvsim.sim import load_ephemeris_data
 from lvsim.utils import LvSimCfg, latlon2enu, cartesian2spherical
 
-from synthterrain import crater
 from synthterrain.crater.diffusion import make_crater_field
 from synthterrain.crater import functions, determine_production_function, generate_diameters, generate_ages, random_points
 
