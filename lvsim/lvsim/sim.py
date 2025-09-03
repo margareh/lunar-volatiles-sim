@@ -250,7 +250,7 @@ class LvSim():
 
             new_df = pd.DataFrame()
             new_df["diameter"] = diameters
-            new_df["age"] = np.random.default_rng().uniform(0, self.cfg.args.time_delta, size=len(diameters))
+            new_df["age"] = np.random.default_rng().uniform(0, self.cfg.args.time_delta * 1e6, size=len(diameters))
 
         else:
             diameters = generate_diameters(self.crater_dist, self.poly.area, self.cfg.args.d_lim[0], self.cfg.args.d_lim[1])
@@ -266,7 +266,7 @@ class LvSim():
         # Set up dataframe for old craters
         old_df = copy.copy(self.crater_df)
         if len(old_df) > 0:
-            old_df["age"] = self.cfg.args.time_delta # only want to diffuse since last diffusion model (AKA over length of time step)
+            old_df["age"] = self.cfg.args.time_delta * 1e6 # only want to diffuse since last diffusion model (AKA over length of time step)
             old_df["new"] = False
         else:
             old_df["age"] = None
@@ -290,11 +290,13 @@ class LvSim():
         all_df["surface"] = [s for s in new_surfs[:,...]]
 
         if len(old_df) > 0:
-            all_df.loc[all_df.new == False, "age"] = self.crater_df["age"] + self.cfg.args.time_delta
+            all_df.loc[all_df.new == False, "age"] = self.crater_df["age"] + self.cfg.args.time_delta * 1e6
 
         drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
         all_df.drop(drop_inds, axis=0, inplace=True)
         self.crater_df = copy.copy(all_df)
+
+        print("Current number of craters: %d" % (len(self.crater_df)))
 
         # Update stored surface
         self.create_surface()
