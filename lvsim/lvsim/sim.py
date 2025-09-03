@@ -293,6 +293,7 @@ class LvSim():
             all_df.loc[all_df.new == False, "age"] = self.crater_df["age"] + self.cfg.args.time_delta * 1e6
 
         drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
+        print("Number of craters, pre-filtering: %d" % (len(all_df)))
         all_df.drop(drop_inds, axis=0, inplace=True)
         self.crater_df = copy.copy(all_df)
 
@@ -342,10 +343,11 @@ class LvSim():
 
         # save plot of surface
         fig, ax = plt.subplots(1,3)
+        fig.set_size_inches(30,10)
         
         im0 = ax[0].imshow(self.surface, cmap='terrain')
         im1 = ax[1].imshow(self.illumin_frac, cmap='inferno', vmin=0, vmax=1)
-        im2 = ax[2].imshow(self.psr, cmap='gray', vmin=0, vmax=1)
+        im2 = ax[2].imshow(self.psr, cmap='gray_r', vmin=0, vmax=1)
 
         div0 = make_axes_locatable(ax[0])
         div1 = make_axes_locatable(ax[1])
@@ -362,6 +364,10 @@ class LvSim():
         ax[0].set_title('Surface')
         ax[1].set_title('Illumination Fraction')
         ax[2].set_title('PSR Mask')
+
+        ax[0].set_axis_off()
+        ax[1].set_axis_off()
+        ax[2].set_axis_off()
         
         if self.cfg.args.plot:
             plt.show()
