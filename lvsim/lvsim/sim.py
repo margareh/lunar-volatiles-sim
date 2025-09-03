@@ -199,19 +199,14 @@ class LvSim():
             self.t -= self.cfg.args.time_delta
             i += 1
 
-            # Print update every 10th time step
-            if i % 10 == 0:
-                print("Now on " + str(self.t) + " Ga")
+            # Print time update
+            print("Now on " + str(self.t) + " Ga")
 
             # terrain changes (diffusion, production of new craters, removal of old craters)
-            print("\tUpdating crater list")
             self.evolve_terrain()
 
             # compute illumination
-            print("\tCalculating horizons")
             self.calc_horizons()
-
-            print("\tCalculating illumination")
             self.illuminate()
 
             # ice delivery
