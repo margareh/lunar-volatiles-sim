@@ -16,7 +16,7 @@ class LvSimCfg():
         # paths
         parser.add_argument('--outpath',
                             type=str,
-                            default='../output',
+                            default='../../output',
                             help='Location for storing output')
         
         # args for lvsim
@@ -71,7 +71,7 @@ class LvSimCfg():
                             help='Resolution for azimuths for computing horizon, in degrees')
         parser.add_argument('--eph_file',
                             type=str,
-                            default='../data/JPLHorizons/sun_position_2004_2024_values_only.txt',
+                            default='../../data/JPLHorizons/sun_position_2004_2024_values_only.txt',
                             help='File location for ephemeris data from JPL Horizons')
         parser.add_argument('--psr_threshold',
                             type=float,

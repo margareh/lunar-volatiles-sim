@@ -325,7 +325,7 @@ class LvSim():
         end = time.time()
         print("Illumination runtime = %4.4f s" % (end-start))
         self.illumin_frac = new_illumin_frac
-        self.new_psrs = new_psrs
+        self.psr = new_psrs
 
     # save crater dataframe and plots
     def save(self):
