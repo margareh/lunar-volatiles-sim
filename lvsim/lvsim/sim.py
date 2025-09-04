@@ -26,6 +26,7 @@ from illumination.illumination import illuminate_cuda
 
 from synthterrain.crater import functions, determine_production_function, random_points, to_file
 from synthterrain.crater import generate_diameters, generate_ages
+from synthterrain.crater.age import equilibrium_age
 
 from lvsim.utils import LvSimCfg
 from lvsim.crater import profile, stopar_fresh_dd
@@ -248,13 +249,18 @@ class LvSim():
                 d = self.prod_fn.rvs(size=(size - len(diameters)))
                 diameters += d[np.logical_and(self.cfg.args.d_lim[0] <= d, d <= self.cfg.args.d_lim[1])].tolist()
 
-            new_df = pd.DataFrame()
-            new_df["diameter"] = diameters
-            new_df["age"] = np.random.default_rng().uniform(0, self.cfg.args.time_delta * 1e6, size=len(diameters))
+            ages = np.random.default_rng().uniform(0, self.cfg.args.time_delta * 1e9, size=len(diameters))
 
         else:
             diameters = generate_diameters(self.crater_dist, self.poly.area, self.cfg.args.d_lim[0], self.cfg.args.d_lim[1])
-            new_df = generate_ages(diameters, self.prod_fn.csfd, self.crater_dist.csfd)
+            # new_df = generate_ages(diameters, self.prod_fn.csfd, self.crater_dist.csfd)
+            eq_ages = equilibrium_age(diameters, self.prod_fn.csfd, self.crater_dist.csfd)
+            age_ranges = np.minimum(eq_ages, self.cfg.args.time_delta * 1e9)
+            ages = np.random.default_rng().uniform(0, age_ranges)
+
+        new_df = pd.DataFrame()
+        new_df["diameter"] = diameters
+        new_df["age"] = ages
 
         xlist, ylist = random_points(self.poly, len(new_df))
         new_df["x"] = xlist
@@ -267,7 +273,7 @@ class LvSim():
         old_df = copy.copy(self.crater_df)
         if len(old_df) > 0:
             prev_ages = old_df["age"].values
-            old_df["age"] = self.cfg.args.time_delta * 1e6 # only want to diffuse since last diffusion model (AKA over length of time step)
+            old_df["age"] = self.cfg.args.time_delta * 1e9 # only want to diffuse since last diffusion model (AKA over length of time step)
             old_df["new"] = False
         else:
             prev_ages = None
@@ -292,7 +298,7 @@ class LvSim():
         all_df["surface"] = [s for s in new_surfs[:,...]]
 
         if len(old_df) > 0:
-            all_df.loc[all_df.new == False, "age"] = prev_ages + self.cfg.args.time_delta * 1e6
+            all_df.loc[all_df.new == False, "age"] = prev_ages + self.cfg.args.time_delta * 1e9
 
         drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
         print("Number of craters, pre-filtering: %d" % (len(all_df)))
