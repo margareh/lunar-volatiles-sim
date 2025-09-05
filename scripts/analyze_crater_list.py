@@ -10,8 +10,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import imageio
 
-# from synthterrain.crater import functions, determine_production_function
-# from synthterrain.crater.age import equilibrium_age
+from synthterrain.crater import functions, determine_production_function
+from synthterrain.crater.age import equilibrium_age
 
 # define the size frequency distribution for VIPER
 def viper_sfd(d):
@@ -71,29 +71,29 @@ def plot_sfd(file, args):
         plt.close()
 
 
-# # plot the crater diameter by age
-# def plot_diam_by_age(file, args):
+# plot the crater diameter by age
+def plot_diam_by_age(file, args):
 
-#     # load
-#     crater_df = pd.read_csv(os.path.join(args.datapath, file))
-#     diams = crater_df.diameter.values
-#     min_d = np.min(diams)
-#     max_d = np.max(diams)
-#     bins = np.arange(min_d, max_d)
-#     diam_ages = np.bincount(bins, crater_df['age']) / np.bincount(bins)
+    # load
+    crater_df = pd.read_csv(os.path.join(args.datapath, file))
+    diams = crater_df.diameter.values
+    min_d = np.min(diams)
+    max_d = np.max(diams)
+    bins = np.arange(min_d, max_d)
+    diam_ages = np.bincount(bins, crater_df['age']) / np.bincount(bins)
 
-#     # compute the equilibrium ages for each diameter
-#     crater_dist = getattr(functions, "VIPER_Env_Spec")(a=min_d, b=max_d)
-#     prod_fn = determine_production_function(crater_dist.a, crater_dist.b)
-#     eq_ages = equilibrium_age(diams, prod_fn.csfd, crater_dist.csfd)
+    # compute the equilibrium ages for each diameter
+    crater_dist = getattr(functions, "VIPER_Env_Spec")(a=min_d, b=max_d)
+    prod_fn = determine_production_function(crater_dist.a, crater_dist.b)
+    eq_ages = equilibrium_age(diams, prod_fn.csfd, crater_dist.csfd)
 
-#     # plot
-#     plt.plot(bins, diam_ages, label='Average Age per 1 m Bin')
-#     plt.plot(diams, eq_ages, linestyle='dashed', color='gray', label='Equilibrium Age')
-#     if args.plot:
-#         plt.show()
-#     else:
-#         plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
+    # plot
+    plt.plot(bins, diam_ages, label='Average Age per 1 m Bin')
+    plt.plot(diams, eq_ages, linestyle='dashed', color='gray', label='Equilibrium Age')
+    if args.plot:
+        plt.show()
+    else:
+        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
 
 
 if __name__ == "__main__":
@@ -136,9 +136,9 @@ if __name__ == "__main__":
     img_list = list(img_norm)
     imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), img_list, duration = 500, loop=0)
 
-    # # also look at the crater ages and diameters over time to make sure these are trending correctly
-    # plot_diam_by_age('crater_list_4240.csv', args)
-    # plot_diam_by_age('crater_list_0.csv', args)
+    # also look at the crater ages and diameters over time to make sure these are trending correctly
+    plot_diam_by_age('crater_list_4240.csv', args)
+    plot_diam_by_age('crater_list_0.csv', args)
 
     # plot the SFD for the first and last time steps
     plot_sfd('crater_list_4240.csv', args) # first one with craters
