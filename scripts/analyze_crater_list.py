@@ -79,8 +79,11 @@ def plot_diam_by_age(file, args):
     diams = crater_df.diameter.values
     min_d = np.min(diams)
     max_d = np.max(diams)
-    bins = np.arange(min_d, max_d)
-    diam_ages = np.bincount(bins, crater_df['age']) / np.bincount(bins)
+    bins = np.arange(int(min_d), int(max_d))
+    ages = crater_df["age"].values
+    diam_age_hist, _ = np.histogram(diams, bins=bins, weights=ages)
+    diam_hist, _ = np.histogram(diams, bins=bins)
+    diam_ages = diam_age_hist / diam_hist
 
     # compute the equilibrium ages for each diameter
     crater_dist = getattr(functions, "VIPER_Env_Spec")(a=min_d, b=max_d)
@@ -88,12 +91,14 @@ def plot_diam_by_age(file, args):
     eq_ages = equilibrium_age(diams, prod_fn.csfd, crater_dist.csfd)
 
     # plot
-    plt.plot(bins, diam_ages, label='Average Age per 1 m Bin')
-    plt.plot(diams, eq_ages, linestyle='dashed', color='gray', label='Equilibrium Age')
+    plt.scatter(bins[:-1], diam_ages * 1e-9, label='Average Age per 1 m Bin')
+    plt.scatter(diams, eq_ages * 1e-9, linestyle='dashed', color='gray', label='Equilibrium Age')
+    plt.legend(loc="upper right")
     if args.plot:
         plt.show()
     else:
         plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
+        plt.close()
 
 
 if __name__ == "__main__":
@@ -127,14 +132,7 @@ if __name__ == "__main__":
         imgs.append(new_img)
 
     # make gif of heightmaps
-    img_arr = np.array(imgs)
-    minval = np.nanmin(img_arr)
-    maxval = np.nanmax(img_arr)
-
-    # normalize the data to [0,1]
-    img_norm = (img_arr - minval) / (maxval - minval)
-    img_list = list(img_norm)
-    imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), img_list, duration = 500, loop=0)
+    imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), imgs, duration = 500, loop=0)
 
     # also look at the crater ages and diameters over time to make sure these are trending correctly
     plot_diam_by_age('crater_list_4240.csv', args)
