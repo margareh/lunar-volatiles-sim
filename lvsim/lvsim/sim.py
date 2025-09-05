@@ -195,7 +195,7 @@ class LvSim():
         
         i = 0
         start_all = time.time()
-        while self.t >= 0:
+        while self.t-self.cfg.args.time_delta >= 0:
 
             # Take a step
             self.t -= self.cfg.args.time_delta
@@ -221,7 +221,7 @@ class LvSim():
             self.save()
 
         end_all = time.time()
-        print("Overall runtime (minutes): %4.4f" % (end_all - start_all) / 60)
+        print("Overall runtime (minutes): %4.4f" % ((end_all - start_all) / 60))
 
 
     # code to generate surface based on data frame
