@@ -265,16 +265,57 @@ class LvSim():
         xlist, ylist = random_points(self.poly, len(new_df))
         new_df["x"] = xlist
         new_df["y"] = ylist
+
+        # Remove any "new" craters that are smaller and within a newer crater
+        print("Number of new craters, pre-filtering: %d" % (len(new_df)))
+        drop_inds = []
+        for i in new_df.index:
+            curr_crater = new_df.loc[[i]]
+            newer_craters = new_df.loc[new_df.age.values < curr_crater.age.values]
+            # print(newer_craters)
+            # print(curr_crater)
+            for j in newer_craters.index:
+                curr_newer_crater = newer_craters.loc[[j]]
+                rad_diff_sq = pow((curr_newer_crater.diameter.values - curr_crater.diameter.values) / 2, 2)
+                xpos_diff_sq = pow((curr_crater.x.values - curr_newer_crater.x.values), 2)
+                ypos_diff_sq = pow((curr_crater.y.values - curr_newer_crater.y.values), 2)
+                if xpos_diff_sq + ypos_diff_sq <= rad_diff_sq:
+                    drop_inds.append(i)
+                    continue
+
+        new_df.drop(drop_inds, axis=0, inplace=True)
+        print("Number of new craters, post-filtering: %d" % (len(new_df)))
+
         new_df["new"] = True
         new_df["d/D"] = stopar_fresh_dd(np.array(diameters))
         new_df["surface"] = new_df.apply(lambda row: profile(row["d/D"], row["diameter"], D=self.cfg.args.domain_size), axis=1)
 
-        # Set up dataframe for old craters
+        # Remove old craters within newer craters
         old_df = copy.copy(self.crater_df)
+        print("Number of old craters, pre-filtering: %d" % (len(old_df)))
+        drop_inds = []
+        for i in old_df.index:
+            curr_crater = new_df.loc[[i]]
+            newer_craters = old_df.loc[old_df.age.values < curr_crater.age.values]
+            newer_craters = pd.concat([newer_craters, new_df])
+            for j in newer_craters.index:
+                curr_newer_crater = newer_craters.loc[[j]]
+                rad_diff_sq = pow((curr_newer_crater.diameter.values - curr_crater.diameter.values) / 2, 2)
+                xpos_diff_sq = pow((curr_crater.x.values - curr_newer_crater.x.values), 2)
+                ypos_diff_sq = pow((curr_crater.y.values - curr_newer_crater.y.values), 2)
+                if xpos_diff_sq + ypos_diff_sq <= rad_diff_sq:
+                    drop_inds.append(i)
+                    continue
+
+        old_df.drop(drop_inds, axis=0, inplace=True)
+        print("Number of old craters, post-filtering: %d" % (len(old_df)))
+
+        # Set up old crater dataframe
         if len(old_df) > 0:
             prev_ages = old_df["age"].values
             old_df["age"] = self.cfg.args.time_delta * 1e9 # only want to diffuse since last diffusion model (AKA over length of time step)
             old_df["new"] = False
+
         else:
             prev_ages = None
             old_df["age"] = None
@@ -301,7 +342,6 @@ class LvSim():
             all_df.loc[all_df.new == False, "age"] = prev_ages + self.cfg.args.time_delta * 1e9
 
         drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
-        print("Number of craters, pre-filtering: %d" % (len(all_df)))
         all_df.drop(drop_inds, axis=0, inplace=True)
         self.crater_df = copy.copy(all_df)
         print("Current number of craters: %d" % (len(self.crater_df)))
