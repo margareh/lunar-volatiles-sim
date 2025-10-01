@@ -312,17 +312,22 @@ class LvSim():
     # Compute horizons for a given terrain map
     def calc_horizons(self):
 
-        # add on border based on how far we're searching for horizon
+        # Add on border based on how far we're searching for horizon
         buffer = int(self.cfg.args.max_range * 1000 * self.cfg.args.res)
         s = int(2*buffer + self.size)
         surf = np.zeros((s,s))
         surf[buffer:-buffer,buffer:-buffer] = copy.copy(self.surface)
         
+        # Compute max slope to define starting elevation
+        grad_surf = np.array(np.gradient(surf))
+        grad_max = np.sqrt(np.sum(pow(grad_surf, 2), axis=0)) * (180 / np.pi)
+        min_elev = np.minimum(-np.abs(grad_max)-1, -89) # really shouldn't have any larger but just in case
+
         # Loop through azimuths and compute horizon for all points on surface with CUDA raytracing code
         # TODO: figure out how to get CUDA to work with a version that computes horizons for all surface points and azimuths at once
         for i in tqdm(range(len(self.azims)), desc="Horizon calculations: "):
             a = np.array([self.azims[i]])
-            elevs = raytrace_horizon(surf, a, res=self.cfg.args.res, max_range=self.cfg.args.max_range, min_elev=self.cfg.args.min_elev, elev_delta=self.cfg.args.elev_delta)
+            elevs = raytrace_horizon(surf, a, res=self.cfg.args.res, max_range=self.cfg.args.max_range, min_elev=min_elev, elev_delta=self.cfg.args.elev_delta)
             elevs[np.abs(elevs-self.cfg.args.min_elev) < 0.0001] = np.nan # if too close to minimum elevation, return NaN
             self.elev_db[i,...] = copy.copy(elevs[...,0]) # copy results to elevation database
 
