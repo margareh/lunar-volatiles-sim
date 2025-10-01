@@ -320,8 +320,8 @@ class LvSim():
         
         # Compute max slope to define starting elevation
         grad_surf = np.array(np.gradient(surf))
-        grad_max = np.max(np.sqrt(np.sum(pow(grad_surf, 2), axis=0)) * (180 / np.pi))
-        min_elev = np.minimum(-grad_max-1, -89) # really shouldn't have any larger but just in case
+        grad_max = np.max(np.sqrt(np.sum(pow(grad_surf, 2), axis=0)))
+        min_elev = np.minimum(-np.rad2deg(np.arctan(grad_max))-1, -89) # really shouldn't have any larger but just in case
         print("Min elevation for horizon calcs: %4.2f" % (min_elev)) # just out of curiosity
 
         # Loop through azimuths and compute horizon for all points on surface with CUDA raytracing code
