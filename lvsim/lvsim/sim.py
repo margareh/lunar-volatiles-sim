@@ -87,6 +87,24 @@ def rescale_surface(args):
     return (surf_rescaled[surf_slices], tm_slices)
 
 
+def remove_old_craters(args):
+    i = args[0]
+    data_np = args[1]
+    append = args[2]
+    curr_crater = data_np[i,:]
+    newer_craters = data_np[data_np[:,1] < curr_crater[1],:]
+    if append is not None:
+        newer_craters = np.vstack((newer_craters, append))
+    rad_diff_sq = pow((newer_craters[:,2] - curr_crater[2]) / 2, 2)
+    xpos_diff_sq = pow((curr_crater[3] - newer_craters[:,3]), 2)
+    ypos_diff_sq = pow((curr_crater[4] - newer_craters[:,4]), 2)
+    inside_rad = (xpos_diff_sq + ypos_diff_sq <= rad_diff_sq)
+    if np.any(inside_rad):
+        return curr_crater[0]
+    else:
+        return -1.0
+
+
 # Make a crater heightmap based on initial surface and dataframe of craters
 def make_heightmap(df, init_surface, tf):
 
@@ -113,7 +131,7 @@ def make_heightmap(df, init_surface, tf):
     # r = args[3]
     # w_init = args[4]
 
-    with Pool(8) as p:
+    with Pool() as p:
         args = [(surfaces[...,i], surf_gsd[i] / tf.a, c[i], r[i], w_init) for i in range(len(diams))]
         out = p.map(rescale_surface, args) # this produces a list of results
     
@@ -265,31 +283,70 @@ class LvSim():
         xlist, ylist = random_points(self.poly, len(new_df))
         new_df["x"] = xlist
         new_df["y"] = ylist
+
+        # Remove any "new" craters that are smaller and within a newer crater
+        print("Number of new craters, pre-filtering: %d" % (len(new_df)))
+        new_craters_np = np.array([new_df.index, new_df.age.values, new_df.diameter.values, new_df.x.values, new_df.y.values]).T
+        with Pool() as p:
+            args = [(i, new_craters_np, None) for i in range(new_craters_np.shape[0])]
+            drop_inds_all = p.map(remove_old_craters, args) # this produces a list of results
+        drop_inds = [i for i in drop_inds_all if i >= 0]
+
+        # drop_inds = []
+        # for i in tqdm(range(new_craters_np.shape[0]), desc="Crater removal 1"):
+        #     curr_crater = new_craters_np[i,:]
+        #     newer_craters = new_craters_np[new_craters_np[:,1] < curr_crater[1],:]
+        #     rad_diff_sq = pow((newer_craters[:,2] - curr_crater[2]) / 2, 2)
+        #     xpos_diff_sq = pow((curr_crater[3] - newer_craters[:,3]), 2)
+        #     ypos_diff_sq = pow((curr_crater[4] - newer_craters[:,4]), 2)
+        #     inside_rad = (xpos_diff_sq + ypos_diff_sq <= rad_diff_sq)
+        #     if np.any(inside_rad):
+        #         drop_inds.append(curr_crater[0])
+        
+        new_df.drop(drop_inds, axis=0, inplace=True)
+        print("Number of new craters, post-filtering: %d" % (len(new_df)))
+
         new_df["new"] = True
-        new_df["d/D"] = stopar_fresh_dd(np.array(diameters))
+        new_df["d/D"] = stopar_fresh_dd(np.array(new_df["diameter"].values))
         new_df["surface"] = new_df.apply(lambda row: profile(row["d/D"], row["diameter"], D=self.cfg.args.domain_size), axis=1)
 
-        # Set up dataframe for old craters
+        # Remove old craters within newer craters
         old_df = copy.copy(self.crater_df)
-        if len(old_df) > 0:
+        if len(self.crater_df) > 0:
+            print("Number of old craters, pre-filtering: %d" % (len(old_df)))
+            old_craters_np = np.array([old_df.index, old_df.age.values, old_df.diameter.values, old_df.x.values, old_df.y.values]).T
+            with Pool() as p:
+                args = [(i, old_craters_np, new_craters_np) for i in range(old_craters_np.shape[0])]
+                drop_inds_all = p.map(remove_old_craters, args) # this produces a list of results
+
+        #     drop_inds = []
+        #     for i in tqdm(range(old_craters_np.shape[0]), desc="Crater removal 2"):
+        #         curr_crater = old_craters_np[i,:]
+        #         newer_craters = np.vstack((old_craters_np[old_craters_np[:,1] < curr_crater[1],:], new_craters_np))
+        #         rad_diff_sq = pow((newer_craters[:,2] - curr_crater[2]) / 2, 2)
+        #         xpos_diff_sq = pow((curr_crater[3] - newer_craters[:,3]), 2)
+        #         ypos_diff_sq = pow((curr_crater[4] - newer_craters[:,4]), 2)
+        #         inside_rad = (xpos_diff_sq + ypos_diff_sq <= rad_diff_sq)
+        #         if np.any(inside_rad):
+        #             drop_inds.append(curr_crater[0])
+
+            drop_inds = [i for i in drop_inds_all if i >= 0]
+            old_df.drop(drop_inds, axis=0, inplace=True)
+            print("Number of old craters, post-filtering: %d" % (len(old_df)))
+
+            # Set up old dataframe for diffusion
             prev_ages = old_df["age"].values
             old_df["age"] = self.cfg.args.time_delta * 1e9 # only want to diffuse since last diffusion model (AKA over length of time step)
             old_df["new"] = False
-        else:
-            prev_ages = None
-            old_df["age"] = None
-            old_df["new"] = None
-
-        # Append
-        if len(old_df) > 0:
             all_df = pd.concat([old_df, new_df], ignore_index=True)
+
         else:
             all_df = copy.copy(new_df)
-
+        
         # Apply diffusion model to craters
         surfs_np = np.array(all_df["surface"].tolist())
         start = time.time()
-        new_ratios, new_surfs = diffusion_cuda(all_df["diameter"], all_df["d/D"], all_df["age"], surfs_np, D=self.cfg.args.domain_size)
+        new_ratios, new_surfs = diffusion_cuda(all_df["diameter"].values, all_df["d/D"].values, all_df["age"].values, surfs_np, D=self.cfg.args.domain_size)
         end = time.time()
         print("Diffusion runtime = %4.4f s" % (end-start))
 
@@ -300,8 +357,8 @@ class LvSim():
         if len(old_df) > 0:
             all_df.loc[all_df.new == False, "age"] = prev_ages + self.cfg.args.time_delta * 1e9
 
+        print("Number of craters before depth-to-diam filtering: %d" % (len(all_df)))
         drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
-        print("Number of craters, pre-filtering: %d" % (len(all_df)))
         all_df.drop(drop_inds, axis=0, inplace=True)
         self.crater_df = copy.copy(all_df)
         print("Current number of craters: %d" % (len(self.crater_df)))
