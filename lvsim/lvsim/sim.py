@@ -290,19 +290,8 @@ class LvSim():
         with Pool() as p:
             args = [(i, new_craters_np, None) for i in range(new_craters_np.shape[0])]
             drop_inds_all = p.map(remove_old_craters, args) # this produces a list of results
-        drop_inds = [i for i in drop_inds_all if i >= 0]
 
-        # drop_inds = []
-        # for i in tqdm(range(new_craters_np.shape[0]), desc="Crater removal 1"):
-        #     curr_crater = new_craters_np[i,:]
-        #     newer_craters = new_craters_np[new_craters_np[:,1] < curr_crater[1],:]
-        #     rad_diff_sq = pow((newer_craters[:,2] - curr_crater[2]) / 2, 2)
-        #     xpos_diff_sq = pow((curr_crater[3] - newer_craters[:,3]), 2)
-        #     ypos_diff_sq = pow((curr_crater[4] - newer_craters[:,4]), 2)
-        #     inside_rad = (xpos_diff_sq + ypos_diff_sq <= rad_diff_sq)
-        #     if np.any(inside_rad):
-        #         drop_inds.append(curr_crater[0])
-        
+        drop_inds = [i for i in drop_inds_all if i >= 0]        
         new_df.drop(drop_inds, axis=0, inplace=True)
         print("Number of new craters, post-filtering: %d" % (len(new_df)))
 
@@ -318,17 +307,6 @@ class LvSim():
             with Pool() as p:
                 args = [(i, old_craters_np, new_craters_np) for i in range(old_craters_np.shape[0])]
                 drop_inds_all = p.map(remove_old_craters, args) # this produces a list of results
-
-        #     drop_inds = []
-        #     for i in tqdm(range(old_craters_np.shape[0]), desc="Crater removal 2"):
-        #         curr_crater = old_craters_np[i,:]
-        #         newer_craters = np.vstack((old_craters_np[old_craters_np[:,1] < curr_crater[1],:], new_craters_np))
-        #         rad_diff_sq = pow((newer_craters[:,2] - curr_crater[2]) / 2, 2)
-        #         xpos_diff_sq = pow((curr_crater[3] - newer_craters[:,3]), 2)
-        #         ypos_diff_sq = pow((curr_crater[4] - newer_craters[:,4]), 2)
-        #         inside_rad = (xpos_diff_sq + ypos_diff_sq <= rad_diff_sq)
-        #         if np.any(inside_rad):
-        #             drop_inds.append(curr_crater[0])
 
             drop_inds = [i for i in drop_inds_all if i >= 0]
             old_df.drop(drop_inds, axis=0, inplace=True)
