@@ -88,17 +88,17 @@ def rescale_surface(args):
 
 
 def remove_old_craters(args):
-    i = args[0]
-    data_np = args[1]
-    append = args[2]
+    i = args[0] # index for current crater
+    data_np = args[1] # crater dataset for comparison (age check applied)
+    append = args[2] # dataset we need to append to also search this (no age check applied)
     curr_crater = data_np[i,:]
     newer_craters = data_np[data_np[:,1] < curr_crater[1],:]
     if append is not None:
         newer_craters = np.vstack((newer_craters, append))
-    rad_diff_sq = pow((newer_craters[:,2] - curr_crater[2]) / 2, 2)
+    rad_diff = (newer_craters[:,2] - curr_crater[2]) / 2
     xpos_diff_sq = pow((curr_crater[3] - newer_craters[:,3]), 2)
     ypos_diff_sq = pow((curr_crater[4] - newer_craters[:,4]), 2)
-    inside_rad = (xpos_diff_sq + ypos_diff_sq <= rad_diff_sq)
+    inside_rad = (xpos_diff_sq + ypos_diff_sq <= np.sign(rad_diff)*pow(rad_diff, 2))
     if np.any(inside_rad):
         return curr_crater[0]
     else:
