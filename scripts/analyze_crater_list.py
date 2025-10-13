@@ -22,8 +22,8 @@ def viper_sfd(d):
     This is number per square meter for diameter in meters
     """
     small = (d <= 80)
-    out = 156228 * np.float_power(d, -1.92)
-    out[small] = 29174 * np.float_power(d[small], -2.389)
+    out = 156228 * np.float_power(d, -2.389)
+    out[small] = 29174 * np.float_power(d[small], -1.92)
     return out / (1000 * 1000)
 
 # plot the empirical size frequency distribution
