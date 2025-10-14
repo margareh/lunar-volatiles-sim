@@ -9,10 +9,11 @@ import time
 import random
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg") # to avoid nonsense tkinter errors that cause crashes
 import matplotlib.pyplot as plt
 
 from multiprocessing import Pool
-from tqdm import tqdm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pyproj import Proj, CRS
 from shapely.geometry import box
@@ -25,7 +26,7 @@ from raytrace.raytrace import raytrace_horizon
 from illumination.illumination import illuminate_cuda
 
 from synthterrain.crater import functions, determine_production_function, random_points, to_file
-from synthterrain.crater import generate_diameters, generate_ages
+from synthterrain.crater import generate_diameters
 from synthterrain.crater.age import equilibrium_age
 
 from lvsim.utils import LvSimCfg
@@ -124,12 +125,6 @@ def make_heightmap(df, init_surface, tf):
 
     # process all surfaces in the model
     new_surf = copy.copy(init_surface)
-
-    # surface = args[0]
-    # scale = args[1]
-    # c = args[2]
-    # r = args[3]
-    # w_init = args[4]
 
     with Pool() as p:
         args = [(surfaces[...,i], surf_gsd[i] / tf.a, c[i], r[i], w_init) for i in range(len(diams))]
@@ -359,13 +354,9 @@ class LvSim():
         min_elev = np.maximum(-np.rad2deg(np.arctan(grad_max))-1, -89) # really shouldn't have any larger but just in case
         print("Min elevation for horizon calcs: %4.2f" % (min_elev)) # just out of curiosity
 
-        # Loop through azimuths and compute horizon for all points on surface with CUDA raytracing code
-        # TODO: figure out how to get CUDA to work with a version that computes horizons for all surface points and azimuths at once
-        for i in tqdm(range(len(self.azims)), desc="Horizon calculations: "):
-            a = np.array([self.azims[i]])
-            elevs = raytrace_horizon(surf, a, res=self.cfg.args.res, max_range=self.cfg.args.max_range, min_elev=min_elev, elev_delta=self.cfg.args.elev_delta)
-            elevs[np.abs(elevs-self.cfg.args.min_elev) < 0.0001] = np.nan # if too close to minimum elevation, return NaN
-            self.elev_db[i,...] = copy.copy(elevs[...,0]) # copy results to elevation database
+        # Compute horizons
+        self.elev_db = raytrace_horizon(surf, self.azims, res=self.cfg.args.res, max_range=self.cfg.args.max_range, min_elev=min_elev, elev_delta=self.cfg.args.elev_delta)
+
 
     # compute the illumination fraction for a given terrain model
     def illuminate(self):
@@ -389,17 +380,18 @@ class LvSim():
         # save surface and illumination
         np.savez_compressed(os.path.join(self.cfg.args.outpath, 'maps_'+ts+'.npz'), surface=self.surface, illumin_frac=self.illumin_frac, psr=self.psr)
 
-        # save plot of surface
-        fig, ax = plt.subplots(1,3)
-        fig.set_size_inches(30,10)
+        # plots
+        fig, ax = plt.subplots(2,3)
+        fig.set_size_inches(30,20)
         
-        im0 = ax[0].imshow(self.surface, cmap='terrain')
-        im1 = ax[1].imshow(self.illumin_frac, cmap='inferno', vmin=0, vmax=1)
-        im2 = ax[2].imshow(self.psr, cmap='gray_r', vmin=0, vmax=1)
+        # first row (surface, illumination fraction, PSR mask)
+        im0 = ax[0][0].imshow(self.surface, cmap='terrain', vmin=-100, vmax=10)
+        im1 = ax[0][1].imshow(self.illumin_frac, cmap='inferno', vmin=0, vmax=1)
+        im2 = ax[0][2].imshow(self.psr, cmap='gray_r', vmin=0, vmax=1)
 
-        div0 = make_axes_locatable(ax[0])
-        div1 = make_axes_locatable(ax[1])
-        div2 = make_axes_locatable(ax[2])
+        div0 = make_axes_locatable(ax[0][0])
+        div1 = make_axes_locatable(ax[0][1])
+        div2 = make_axes_locatable(ax[0][2])
 
         cax0 = div0.append_axes('right', size='5%', pad=0.05)
         cax1 = div1.append_axes('right', size='5%', pad=0.05)
@@ -409,19 +401,47 @@ class LvSim():
         fig.colorbar(im1, cax=cax1, orientation='vertical')
         fig.colorbar(im2, cax=cax2, orientation='vertical')
 
-        ax[0].set_title('Surface')
-        ax[1].set_title('Illumination Fraction')
-        ax[2].set_title('PSR Mask')
+        ax[0][0].set_title('Surface')
+        ax[0][1].set_title('Illumination Fraction')
+        ax[0][2].set_title('PSR Mask')
 
-        ax[0].set_axis_off()
-        ax[1].set_axis_off()
-        ax[2].set_axis_off()
-        
+        ax[0][0].set_axis_off()
+        ax[0][1].set_axis_off()
+        ax[0][2].set_axis_off()
+
+        # second row (min, avg, max elevation of the horizon)
+        min_elev = np.min(self.elev_db, axis=0)
+        mean_elev = np.mean(self.elev_db, axis=0)
+        max_elev = np.max(self.elev_db, axis=0)
+        im3 = ax[1][0].imshow(min_elev, cmap='Blues', vmin=-20, vmax=30)
+        im4 = ax[1][1].imshow(mean_elev, cmap='Blues', vmin=-20, vmax=30)
+        im5 = ax[1][2].imshow(max_elev, cmap='Blues', vmin=-20, vmax=30)
+
+        div3 = make_axes_locatable(ax[1][0])
+        div4 = make_axes_locatable(ax[1][1])
+        div5 = make_axes_locatable(ax[1][2])
+
+        cax3 = div3.append_axes('right', size='5%', pad=0.05)
+        cax4 = div4.append_axes('right', size='5%', pad=0.05)
+        cax5 = div5.append_axes('right', size='5%', pad=0.05)
+
+        fig.colorbar(im3, cax=cax3, orientation='vertical')
+        fig.colorbar(im4, cax=cax4, orientation='vertical')
+        fig.colorbar(im5, cax=cax5, orientation='vertical')
+
+        ax[1][0].set_title('Min Horizon Elevation')
+        ax[1][1].set_title('Avg Horizon Elevation')
+        ax[1][2].set_title('Max Horizon Elevation')
+
+        ax[1][0].set_axis_off()
+        ax[1][1].set_axis_off()
+        ax[1][2].set_axis_off()
+
         if self.cfg.args.plot:
             plt.show()
         else:
             plt.savefig(os.path.join(self.cfg.args.outpath, 'plots', 'surface_'+ts+'.png'), dpi=100, bbox_inches='tight')
-            plt.close()
+            plt.close('all')
 
 
 if __name__ == "__main__":
