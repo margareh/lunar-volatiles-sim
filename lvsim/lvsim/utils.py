@@ -22,7 +22,7 @@ class LvSimCfg():
         # args for lvsim
         parser.add_argument('--max_age',
                             type=float,
-                            default=4.25,
+                            default=3.8,
                             help='Maximum age in gigayears (AKA start time of model)')
         parser.add_argument('--time_delta',
                             type=float,
