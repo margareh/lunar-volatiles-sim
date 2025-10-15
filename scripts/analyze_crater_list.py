@@ -8,10 +8,13 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import imageio
+import rasterio as rs
+import richdem as rd
 
-from synthterrain.crater import functions, determine_production_function
-from synthterrain.crater.age import equilibrium_age
+# from synthterrain.crater import functions, determine_production_function
+# from synthterrain.crater.age import equilibrium_age
 
 # define the size frequency distribution for VIPER
 def viper_sfd(d):
@@ -71,33 +74,104 @@ def plot_sfd(file, args):
         plt.close()
 
 
-# plot the crater diameter by age
-def plot_diam_by_age(file, args):
+# # plot the crater diameter by age
+# def plot_diam_by_age(file, args):
 
-    # load
-    crater_df = pd.read_csv(os.path.join(args.datapath, file))
-    diams = crater_df.diameter.values
-    min_d = np.min(diams)
-    max_d = np.max(diams)
-    bins = np.arange(int(min_d), int(max_d))
-    ages = crater_df["age"].values
-    diam_age_hist, _ = np.histogram(diams, bins=bins, weights=ages)
-    diam_hist, _ = np.histogram(diams, bins=bins)
-    diam_ages = diam_age_hist / diam_hist
+#     # load
+#     crater_df = pd.read_csv(os.path.join(args.datapath, file))
+#     diams = crater_df.diameter.values
+#     min_d = np.min(diams)
+#     max_d = np.max(diams)
+#     bins = np.arange(int(min_d), int(max_d))
+#     ages = crater_df["age"].values
+#     diam_age_hist, _ = np.histogram(diams, bins=bins, weights=ages)
+#     diam_hist, _ = np.histogram(diams, bins=bins)
+#     diam_ages = diam_age_hist / diam_hist
 
-    # compute the equilibrium ages for each diameter
-    crater_dist = getattr(functions, "VIPER_Env_Spec")(a=min_d, b=max_d)
-    prod_fn = determine_production_function(crater_dist.a, crater_dist.b)
-    eq_ages = equilibrium_age(diams, prod_fn.csfd, crater_dist.csfd)
+#     # compute the equilibrium ages for each diameter
+#     crater_dist = getattr(functions, "VIPER_Env_Spec")(a=min_d, b=max_d)
+#     prod_fn = determine_production_function(crater_dist.a, crater_dist.b)
+#     eq_ages = equilibrium_age(diams, prod_fn.csfd, crater_dist.csfd)
 
-    # plot
-    plt.scatter(bins[:-1], diam_ages * 1e-9, label='Average Age per 1 m Bin')
-    plt.scatter(diams, eq_ages * 1e-9, linestyle='dashed', color='gray', label='Equilibrium Age')
-    plt.legend(loc="upper right")
+#     # plot
+#     plt.scatter(bins[:-1], diam_ages * 1e-9, label='Average Age per 1 m Bin')
+#     plt.scatter(diams, eq_ages * 1e-9, linestyle='dashed', color='gray', label='Equilibrium Age')
+#     plt.legend(loc="upper right")
+#     if args.plot:
+#         plt.show()
+#     else:
+#         plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
+#         plt.close()
+
+
+# plot slope histogram of surface vs that of haworth DEM
+def plot_slope_hist(file, args):
+
+    # load haworth DEM
+    haworth_dem_f = rs.open(args.haworth_dem)
+    haworth_dem = haworth_dem_f.read(1)
+    haworth_proj = haworth_dem_f.crs.to_string()
+    haworth_dem_f.close()
+
+    # compute slope of haworth DEM
+    haworth_dem_rd = rd.rdarray(haworth_dem, no_data=haworth_dem_f.nodata)
+    haworth_dem_rd.projection = haworth_proj
+    haworth_slope = rd.TerrainAttribute(haworth_dem_rd, attrib='slope_radians')
+    haworth_max = np.nanmax(haworth_slope) * (180 / np.pi)
+    # print(np.nanmin(haworth_slope) * (180 / np.pi))
+    # print(haworth_max)
+    # print(haworth_slope.shape)
+
+    # load surface
+    maps = np.load(os.path.join(args.datapath, file))
+    surf = maps['surface']
+
+    # compute slope of surface
+    surf_rd = rd.rdarray(surf, no_data=np.nan)
+    # surf_rd.projection = '+proj=utm +zone=11 +ellps=WGS84 + datum=WGS84 +units=m +no_defs +type=crs'
+    surf_rd.projection = haworth_proj
+    surf_slope = rd.TerrainAttribute(surf_rd, attrib='slope_radians')
+    surf_max = np.nanmax(surf_slope) * (180 / np.pi)
+    # print(np.nanmin(surf_slope) * (180 / np.pi))
+    # print(surf_max)
+    # print(surf_slope.shape)
+    
+    # plot both beside one another
+    fig, ax = plt.subplots(1,2)
+    fig.set_size_inches(10, 5)
+    fig.suptitle(file)
+
+    max_slope = max(haworth_max, surf_max)
+    print("Max slope:")
+    print(max_slope)
+    surf_slope_sample = surf_slope[::2, ::2] * (180 / np.pi)
+    haworth_slope_sample = haworth_slope[::50, ::50] * (180 / np.pi)
+    ax[0].imshow(surf_slope_sample, cmap='Spectral_r', vmin=0, vmax=max_slope)
+    im = ax[1].imshow(haworth_slope_sample, cmap='Spectral_r', vmin=0, vmax=max_slope)
+
+    ax[0].set_title('Synthetic')
+    ax[1].set_title('Haworth DEM')
+
+    div = make_axes_locatable(ax[1])
+    cax = div.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+
     if args.plot:
         plt.show()
     else:
-        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
+        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_slope_imgs.png')), dpi=100, bbox_inches='tight')
+        plt.close()
+
+    # plot both on same histogram
+    bins = np.linspace(0, max_slope, 30)
+    plt.hist(surf_slope_sample.flatten(), bins, alpha=0.5, label='Synthetic')
+    plt.hist(haworth_slope_sample.flatten(), bins, alpha=0.5, label='Haworth')
+    plt.legend(loc='upper right')
+
+    if args.plot:
+        plt.show()
+    else:
+        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_slope_hist.png')), dpi=100, bbox_inches='tight')
         plt.close()
 
 
@@ -109,10 +183,26 @@ if __name__ == "__main__":
     parser.add_argument('--dim', type=int, default=200, help='Side dimensions of map (number of pixels)')
     parser.add_argument('--res', type=float, default=1., help='Resolution of map (meters per pixel)')
     parser.add_argument('--plot', action='store_true', help='Flag to plot analysis figures instead of saving them')
+    parser.add_argument('--age', type=float, default=3.79, help='Age of first non-flat terrain surface')
+    parser.add_argument('--haworth_dem', type=str, help='File path to Haworth DEM', default='/media/usb/ThesisWork/Volatiles/SouthPoleData/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif')
     args = parser.parse_args()
 
     if os.path.exists(os.path.join(args.datapath, 'figs')) == False:
         os.mkdir(os.path.join(args.datapath, 'figs'))
+
+    first_step = str(int(args.age * 1000))
+
+    # crater ages and diameters over time to make sure these are trending correctly
+    # plot_diam_by_age('crater_list_'+first_step+'.csv', args)
+    # plot_diam_by_age('crater_list_0.csv', args)
+
+    # plot the SFD for the first and last time steps
+    plot_sfd('crater_list_'+first_step+'.csv', args) # first one with craters
+    plot_sfd('crater_list_0.csv', args) # last one
+
+    # get slope histogram and compare to Haworth DEM
+    plot_slope_hist('maps_'+first_step+'.npz', args)
+    plot_slope_hist('maps_0.npz', args)
 
     # create gifs of maps
     out_files = os.listdir(args.datapath)
@@ -125,19 +215,11 @@ if __name__ == "__main__":
     # crater_files_sort = [f for _, f in sorted(zip(time_steps, crater_files), reverse=True)]
     T = len(plot_files_sort)
 
-    imgs = []
-    for t in range(T):
-        print(t)
-        new_img = imageio.imread(os.path.join(args.datapath, 'plots', plot_files_sort[t]))
-        imgs.append(new_img)
+    # imgs = []
+    # for t in range(T):
+    #     print(t)
+    #     new_img = imageio.imread(os.path.join(args.datapath, 'plots', plot_files_sort[t]))
+    #     imgs.append(new_img)
 
     # make gif of heightmaps
-    imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), imgs, duration = 500, loop=0)
-
-    # also look at the crater ages and diameters over time to make sure these are trending correctly
-    plot_diam_by_age('crater_list_4240.csv', args)
-    plot_diam_by_age('crater_list_0.csv', args)
-
-    # plot the SFD for the first and last time steps
-    plot_sfd('crater_list_4240.csv', args) # first one with craters
-    plot_sfd('crater_list_0.csv', args) # last one
+    # imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), imgs, duration = 500, loop=0)
