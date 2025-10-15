@@ -343,10 +343,25 @@ class LvSim():
     def calc_horizons(self):
 
         # Add on border based on how far we're searching for horizon
-        buffer = int(self.cfg.args.max_range * 1000 * self.cfg.args.res)
-        s = int(2*buffer + self.size)
+        # currently setting border values to closest real value
+        b = int(self.cfg.args.max_range * 1000 * self.cfg.args.res)
+        s = int(2*b + self.size)
         surf = np.zeros((s,s))
-        surf[buffer:-buffer,buffer:-buffer] = copy.copy(self.surface)
+
+        # interior portion
+        surf[b:-b, b:-b] = copy.copy(self.surface)
+
+        # border sides
+        surf[b:-b, 0:b] = np.tile(self.surface[:,0], (b,1)).T # left
+        surf[b:-b, -b:] = np.tile(self.surface[:,-1], (b,1)).T # right
+        surf[0:b, b:-b] = np.tile(self.surface[0,:], (b,1)) # top
+        surf[-b:, b:-b] = np.tile(self.surface[-1,:], (b,1)) # bottom
+
+        # border corners
+        surf[0:b, 0:b] = np.ones((b,b)) * self.surface[0,0] # top left
+        surf[0:b, -b:] = np.ones((b,b)) * self.surface[0,-1] # top right
+        surf[-b:, 0:b] = np.ones((b,b)) * self.surface[-1,0] # bottom left
+        surf[-b:, -b:] = np.ones((b,b)) * self.surface[-1,-1] # bottom right
         
         # Compute max slope to define starting elevation
         grad_surf = np.array(np.gradient(surf))
