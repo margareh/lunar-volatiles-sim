@@ -303,8 +303,9 @@ class LvSim():
         new_df["new"] = True
         new_df["d/D"] = stopar_fresh_dd(np.array(new_df["diameter"].values))
         new_df["surface"] = new_df.apply(lambda row: profile(row["d/D"], row["diameter"], D=self.cfg.args.domain_size), axis=1)
-        new_df.set_index(np.arange(self.i, self.i+len(new_df)))
-        self.i = len(new_df)
+
+        new_df.index = np.arange(self.i, self.i+len(new_df))
+        self.i += len(new_df)
 
         # Remove old craters within newer craters
         old_df = copy.copy(self.crater_df)
@@ -327,7 +328,7 @@ class LvSim():
 
         else:
             all_df = copy.copy(new_df)
-        
+
         # Apply diffusion model to craters
         surfs_np = np.array(all_df["surface"].tolist())
         start = time.time()
