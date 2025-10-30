@@ -54,12 +54,13 @@ def compute_crater_ages(old_df, new_df):
     print(old_df.index)
     print(new_df.index)
     print(removed_craters.index)
+    removed_craters_np = np.array([removed_craters.index, removed_craters.age.values, removed_craters.diameter.values, removed_craters.x.values, removed_craters.y.values]).T
     new_craters_np = np.array([new_df.index, new_df.age.values, new_df.diameter.values, new_df.x.values, new_df.y.values]).T
 
-    # determine which new(er) crater removed the older crater
+    # determine which new(er) crater removed the older craters
     # and compute age at which crater was removed
     with Pool() as p:
-        args = [(i, new_craters_np, None, True) for i in range(removed_craters.shape[0])]
+        args = [(i, removed_craters_np, new_craters_np, True) for i in range(removed_craters.shape[0])]
         out = p.map(remove_old_craters, args) # this produces a list of results
         # out is a list of tuples: (index of removed crater, age at removal)
 
