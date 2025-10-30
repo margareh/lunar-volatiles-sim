@@ -135,7 +135,7 @@ if __name__ == "__main__":
     for i in range(cfg.args.iters):
         
         # setup for this iteration
-        print("Now on " + str(i+1) + " / " + str(cfg.args.iters+1))
+        print("Now on " + str(i+1) + " / " + str(cfg.args.iters))
         cfg.args.seed = init_seed + i
         lvsim = LvSim(cfg)
 
