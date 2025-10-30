@@ -5,10 +5,12 @@
 import os
 import argparse
 import numpy as np
+import sys
+import copy
 
 class LvSimCfg():
 
-    def __init__(self):
+    def __init__(self, addtl_args=None):
 
         # setup argument parser
         parser = argparse.ArgumentParser()
@@ -106,7 +108,14 @@ class LvSimCfg():
                             help='Random seed')
         
         # parse args at the end and save
-        self.args = parser.parse_args()
+        # this also adds any additional arguments that were added
+        args_to_parse = copy.copy(sys.argv)
+        if addtl_args is not None:
+            for k, v in addtl_args.items():
+                args_to_parse.append('--'+k)
+                args_to_parse.append(v)
+
+        self.args = parser.parse_args(args_to_parse)
 
         # validate inputs
         self.validate_args()
