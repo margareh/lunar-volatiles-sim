@@ -51,6 +51,9 @@ def compute_crater_ages(old_df, new_df):
 
     # filter to craters that were in old but not new
     removed_craters = old_df[~old_df.index.isin(new_df.index)]
+    print(old_df.index)
+    print(new_df.index)
+    print(removed_craters.index)
     new_craters_np = np.array([new_df.index, new_df.age.values, new_df.diameter.values, new_df.x.values, new_df.y.values]).T
 
     # determine which new(er) crater removed the older crater
