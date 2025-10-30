@@ -25,7 +25,7 @@ from diffusion.diffusion import diffusion_cuda
 from raytrace.raytrace import raytrace_horizon
 from illumination.illumination import illuminate_cuda
 
-from synthterrain.crater import functions, determine_production_function, random_points, to_file
+from synthterrain.crater import functions, determine_production_function, random_points
 from synthterrain.crater import generate_diameters
 from synthterrain.crater.age import equilibrium_age
 
@@ -92,6 +92,7 @@ def remove_old_craters(args):
     i = args[0] # index for current crater
     data_np = args[1] # crater dataset for comparison (age check applied)
     append = args[2] # dataset we need to append to also search this (no age check applied)
+    return_age = args[3] # flag for whether to return index of newer crater(s)
     curr_crater = data_np[i,:]
     newer_craters = data_np[data_np[:,1] < curr_crater[1],:]
     if append is not None:
@@ -100,10 +101,18 @@ def remove_old_craters(args):
     xpos_diff_sq = pow((curr_crater[3] - newer_craters[:,3]), 2)
     ypos_diff_sq = pow((curr_crater[4] - newer_craters[:,4]), 2)
     inside_rad = (xpos_diff_sq + ypos_diff_sq <= np.sign(rad_diff)*pow(rad_diff, 2))
+    
     if np.any(inside_rad):
-        return curr_crater[0]
+        out_val = curr_crater[0]
     else:
-        return -1.0
+        out_val = -1.0
+    
+    if return_age:
+        max_age_new = np.max(newer_craters[inside_rad, 1])
+        age = curr_crater[1] + max_age_new
+        return (out_val, age)
+    else:
+        return out_val
 
 
 # Make a crater heightmap based on initial surface and dataframe of craters
@@ -163,8 +172,9 @@ class LvSim():
         # save production function information
         self.prod_fn = determine_production_function(self.crater_dist.a, self.crater_dist.b)
 
-        # starting age of model
+        # starting age of model and crater index
         self.t = cfg.args.max_age
+        self.i = 0
 
         # save lat and long information based on assumed grid
         # build a grid
@@ -283,7 +293,7 @@ class LvSim():
         print("Number of new craters, pre-filtering: %d" % (len(new_df)))
         new_craters_np = np.array([new_df.index, new_df.age.values, new_df.diameter.values, new_df.x.values, new_df.y.values]).T
         with Pool() as p:
-            args = [(i, new_craters_np, None) for i in range(new_craters_np.shape[0])]
+            args = [(i, new_craters_np, None, False) for i in range(new_craters_np.shape[0])]
             drop_inds_all = p.map(remove_old_craters, args) # this produces a list of results
 
         drop_inds = [i for i in drop_inds_all if i >= 0]        
@@ -293,6 +303,8 @@ class LvSim():
         new_df["new"] = True
         new_df["d/D"] = stopar_fresh_dd(np.array(new_df["diameter"].values))
         new_df["surface"] = new_df.apply(lambda row: profile(row["d/D"], row["diameter"], D=self.cfg.args.domain_size), axis=1)
+        new_df.set_index(np.arange(self.i, self.i+len(new_df)))
+        self.i = len(new_df)
 
         # Remove old craters within newer craters
         old_df = copy.copy(self.crater_df)
@@ -300,7 +312,7 @@ class LvSim():
             print("Number of old craters, pre-filtering: %d" % (len(old_df)))
             old_craters_np = np.array([old_df.index, old_df.age.values, old_df.diameter.values, old_df.x.values, old_df.y.values]).T
             with Pool() as p:
-                args = [(i, old_craters_np, new_craters_np) for i in range(old_craters_np.shape[0])]
+                args = [(i, old_craters_np, new_craters_np, False) for i in range(old_craters_np.shape[0])]
                 drop_inds_all = p.map(remove_old_craters, args) # this produces a list of results
 
             drop_inds = [i for i in drop_inds_all if i >= 0]
@@ -311,7 +323,7 @@ class LvSim():
             prev_ages = old_df["age"].values
             old_df["age"] = self.cfg.args.time_delta * 1e9 # only want to diffuse since last diffusion model (AKA over length of time step)
             old_df["new"] = False
-            all_df = pd.concat([old_df, new_df], ignore_index=True)
+            all_df = pd.concat([old_df, new_df])
 
         else:
             all_df = copy.copy(new_df)
@@ -390,7 +402,11 @@ class LvSim():
 
         # save crater dataframe without surfaces
         crater_df_small = self.crater_df.drop("surface", axis=1)
-        to_file(crater_df_small, os.path.join(self.cfg.args.outpath, 'crater_list_'+ts+'.csv'), False)
+        # to_file(crater_df_small, os.path.join(self.cfg.args.outpath, 'crater_list_'+ts+'.csv'), False)
+        crater_df_small.to_csv(
+            os.path.join(self.cfg.args.outpath, 'crater_list_'+ts+'.csv'),
+            columns=["x", "y", "diameter", "age", "d/D"],
+        )
 
         # save surface and illumination
         np.savez_compressed(os.path.join(self.cfg.args.outpath, 'maps_'+ts+'.npz'), surface=self.surface, illumin_frac=self.illumin_frac, psr=self.psr)
