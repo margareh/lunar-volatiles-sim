@@ -3,9 +3,8 @@
 # purpose:  run monte carlo simulations to figure out survivability distribution of 
 #       craters in the face of degradation and impacts
 
-import sys
 import copy
-import argparse
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -100,6 +99,9 @@ def get_summary(age_df):
     age_df.set_index('diam_bin')
     age_df.drop('diameter', axis=1, inplace=True)
 
+    # make age be myr instead of yr
+    age_df['age'] /= 1e6
+
     # compute aggregate statistics
     summ_df = age_df.groupby('diam_bin').agg(
         count = pd.NamedAgg(column='age', aggfunc='count'),
@@ -108,19 +110,6 @@ def get_summary(age_df):
         avg_dD = pd.NamedAgg(column='d/D', aggfunc='mean'),
         std_dD = pd.NamedAgg(column='d/D', aggfunc='std')
     )
-    # counts_df = age_df.groupby(by=['diam_bin']).count()
-    # counts_df.drop('d/D', axis=1, inplace=True)
-    # counts_df.rename(columns={'age': 'count'})
-
-    # avgs_df = age_df.groupby(by=['diam_bin']).mean()
-    # avgs_df.rename(columns={'age': 'avg_age', 'd/D': 'avg_dD'})
-
-    # stdevs_df = age_df.groupby(by=['diam_bin']).std()
-    # stdevs_df.rename(columns={'age': 'stdev_age', 'd/D': 'stdev_dD'})
-
-    # combine into one final dataframe
-    # summ_df = pd.concat([counts_df, avgs_df, stdevs_df], axis=1)
-    print(summ_df)
     return summ_df
 
 
@@ -156,15 +145,23 @@ if __name__ == "__main__":
 
         # run simulation and get results of survivability
         age_df = run_sim(lvsim)
-        print(len(age_df))
+        # print(len(age_df))
 
         # bin by diameter and compute avg and std dev of ages
         new_age_rows = get_summary(age_df)
-        print(len(new_age_rows))
+        # print(len(new_age_rows))
+        new_age_rows['iter'] = i
+        new_age_rows.set_index(['iter', 'diam_bin'])
 
         # append to overall dataset
-        age_summ_df = pd.concat([age_summ_df, new_age_rows])
-        print(len(age_summ_df))
+        if len(age_summ_df) > 0:
+            age_summ_df = pd.concat([age_summ_df, new_age_rows])
+        else:
+            copy.copy(age_summ_df)
+        # print(len(age_summ_df))
+
+    # save the results
+    age_summ_df.to_csv(os.path.join(cfg.args.outpath, 'mc_crater_ages.csv'))
 
     # plot the results
 
