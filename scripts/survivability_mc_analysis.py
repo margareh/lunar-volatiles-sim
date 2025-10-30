@@ -101,18 +101,25 @@ def get_summary(age_df):
     age_df.drop('diameter', axis=1, inplace=True)
 
     # compute aggregate statistics
-    counts_df = age_df.groupby(by=['diam_bin']).count()
-    counts_df.drop('d/D', axis=1, inplace=True)
-    counts_df.rename(columns={'age': 'count'})
+    summ_df = age_df.groupby('diam_bin').agg(
+        count = pd.NamedAgg(column='age', aggfunc='count'),
+        avg_age = pd.NamedAgg(column='age', aggfunc='mean'),
+        std_age = pd.NamedAgg(column='age', aggfunc='std'),
+        avg_dD = pd.NamedAgg(column='d/D', aggfunc='mean'),
+        std_dD = pd.NamedAgg(column='d/D', aggfunc='std')
+    )
+    # counts_df = age_df.groupby(by=['diam_bin']).count()
+    # counts_df.drop('d/D', axis=1, inplace=True)
+    # counts_df.rename(columns={'age': 'count'})
 
-    avgs_df = age_df.groupby(by=['diam_bin']).mean()
-    avgs_df.rename(columns={'age': 'avg_age', 'd/D': 'avg_dD'})
+    # avgs_df = age_df.groupby(by=['diam_bin']).mean()
+    # avgs_df.rename(columns={'age': 'avg_age', 'd/D': 'avg_dD'})
 
-    stdevs_df = age_df.groupby(by=['diam_bin']).std()
-    stdevs_df.rename(columns={'age': 'stdev_age', 'd/D': 'stdev_dD'})
+    # stdevs_df = age_df.groupby(by=['diam_bin']).std()
+    # stdevs_df.rename(columns={'age': 'stdev_age', 'd/D': 'stdev_dD'})
 
     # combine into one final dataframe
-    summ_df = pd.concat([counts_df, avgs_df, stdevs_df], axis=1)
+    # summ_df = pd.concat([counts_df, avgs_df, stdevs_df], axis=1)
     print(summ_df)
     return summ_df
 
@@ -139,7 +146,7 @@ if __name__ == "__main__":
     
     # run simulations
     init_seed = 3567897
-    age_summ_df = pd.DataFrame(columns=['iter', 'diam_bin', 'count', 'avg_age', 'stdev_age', 'avg_dD', 'stdev_dD'])
+    age_summ_df = pd.DataFrame(columns=['iter', 'diam_bin', 'count', 'avg_age', 'std_age', 'avg_dD', 'std_dD'])
     for i in range(cfg.args.iters):
         
         # setup for this iteration
