@@ -78,25 +78,25 @@ def get_summary(age_df):
 
     # add bin column to group by
     age_df['diam_bin'] = '1-2.5'
-    age_df.loc[[age_df.diameter > 2.5]]['diam_bin'] = '2.5-5'
-    age_df.loc[[age_df.diameter > 5]]['diam_bin'] = '5-10'
-    age_df.loc[[age_df.diameter > 10]]['diam_bin'] = '10-25'
-    age_df.loc[[age_df.diameter > 25]]['diam_bin'] = '25-50'
-    age_df.loc[[age_df.diameter > 50]]['diam_bin'] = '50-75'
-    age_df.loc[[age_df.diameter > 75]]['diam_bin'] = '75-100'
-    age_df.loc[[age_df.diameter > 100]]['diam_bin'] = '100-150'
-    age_df.loc[[age_df.diameter > 150]]['diam_bin'] = '150-200'
-    age_df.loc[[age_df.diameter > 200]]['diam_bin'] = '200-250'
-    age_df.loc[[age_df.diameter > 250]]['diam_bin'] = '250-300'
-    age_df.loc[[age_df.diameter > 300]]['diam_bin'] = '300-350'
-    age_df.loc[[age_df.diameter > 350]]['diam_bin'] = '350-400'
-    age_df.loc[[age_df.diameter > 400]]['diam_bin'] = '400-450'
-    age_df.loc[[age_df.diameter > 450]]['diam_bin'] = '450-500'
-    age_df.loc[[age_df.diameter > 500]]['diam_bin'] = '500-600'
-    age_df.loc[[age_df.diameter > 600]]['diam_bin'] = '600-700'
-    age_df.loc[[age_df.diameter > 700]]['diam_bin'] = '700-800'
-    age_df.loc[[age_df.diameter > 800]]['diam_bin'] = '800-900'
-    age_df.loc[[age_df.diameter > 900]]['diam_bin'] = '900-1000'
+    age_df.loc[age_df['diameter'] > 2.5, 'diam_bin'] = '2.5-5'
+    age_df.loc[age_df['diameter'] > 5,   'diam_bin'] = '5-10'
+    age_df.loc[age_df['diameter'] > 10,  'diam_bin'] = '10-25'
+    age_df.loc[age_df['diameter'] > 25,  'diam_bin'] = '25-50'
+    age_df.loc[age_df['diameter'] > 50,  'diam_bin'] = '50-75'
+    age_df.loc[age_df['diameter'] > 75,  'diam_bin'] = '75-100'
+    age_df.loc[age_df['diameter'] > 100, 'diam_bin'] = '100-150'
+    age_df.loc[age_df['diameter'] > 150, 'diam_bin'] = '150-200'
+    age_df.loc[age_df['diameter'] > 200, 'diam_bin'] = '200-250'
+    age_df.loc[age_df['diameter'] > 250, 'diam_bin'] = '250-300'
+    age_df.loc[age_df['diameter'] > 300, 'diam_bin'] = '300-350'
+    age_df.loc[age_df['diameter'] > 350, 'diam_bin'] = '350-400'
+    age_df.loc[age_df['diameter'] > 400, 'diam_bin'] = '400-450'
+    age_df.loc[age_df['diameter'] > 450, 'diam_bin'] = '450-500'
+    age_df.loc[age_df['diameter'] > 500, 'diam_bin'] = '500-600'
+    age_df.loc[age_df['diameter'] > 600, 'diam_bin'] = '600-700'
+    age_df.loc[age_df['diameter'] > 700, 'diam_bin'] = '700-800'
+    age_df.loc[age_df['diameter'] > 800, 'diam_bin'] = '800-900'
+    age_df.loc[age_df['diameter'] > 900, 'diam_bin'] = '900-1000'
     age_df.set_index('diam_bin')
     age_df.drop('diameter', axis=1, inplace=True)
 
@@ -113,6 +113,7 @@ def get_summary(age_df):
 
     # combine into one final dataframe
     summ_df = pd.concat([counts_df, avgs_df, stdevs_df], axis=1)
+    print(summ_df)
     return summ_df
 
 
