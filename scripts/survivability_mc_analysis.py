@@ -123,28 +123,27 @@ if __name__ == "__main__":
     #     args_to_parse.append(v)
     # print(args_to_parse)
 
-    # parse args
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dim', type=int, default=200, help='Dimension of one side of region')
-    parser.add_argument('--surface_age', type=float, default=4250, help='Surface age in Myr')
-    parser.add_argument('--time_step', type=float, default=0.01, help='Time step in Myr')
-    parser.add_argument('--iters', type=int, default=100, help='Iterations of MC sim to run')
-    args = parser.parse_args()
+    # # parse args
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--dim', type=int, default=200, help='Dimension of one side of region')
+    # parser.add_argument('--surface_age', type=float, default=4250, help='Surface age in Myr')
+    # parser.add_argument('--time_step', type=float, default=0.01, help='Time step in Myr')
+    # parser.add_argument('--iters', type=int, default=100, help='Iterations of MC sim to run')
+    # args = parser.parse_args()
 
     # add to arguments to make sure sim has everything it needs
-    cfg = LvSimCfg() # this defines a lot of things for us!
-    cfg.args.use_prod_fn = True
-    cfg.args.max_age = args.surface_age / 1000
-    cfg.args.time_delta = args.time_step / 1000
-    cfg.args.bbox = [0, args.dim, args.dim, 0]
-
+    # addtl_args = {'iters' : 100}
+    addtl_args = {'iters' : 1}
+    cfg = LvSimCfg(addtl_args) # this defines a lot of things for us!
+    cfg.args.use_prod_fn = True # want to make sure we use the production function here
+    
     # run simulations
     init_seed = 356789746351
     age_summ_df = pd.DataFrame(columns=['iter', 'diam_bin', 'count', 'avg_age', 'stdev_age', 'avg_dD', 'stdev_dD'])
-    for i in range(args.iters):
+    for i in range(cfg.args.iters):
         
         # setup for this iteration
-        print("Now on " + str(i+1) + " / " + str(args.iters+1))
+        print("Now on " + str(i+1) + " / " + str(cfg.args.iters+1))
         cfg.args.seed = init_seed + i
         lvsim = LvSim(cfg)
 
