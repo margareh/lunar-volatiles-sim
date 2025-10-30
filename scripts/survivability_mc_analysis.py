@@ -123,14 +123,6 @@ if __name__ == "__main__":
     #     args_to_parse.append(v)
     # print(args_to_parse)
 
-    # # parse args
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--dim', type=int, default=200, help='Dimension of one side of region')
-    # parser.add_argument('--surface_age', type=float, default=4250, help='Surface age in Myr')
-    # parser.add_argument('--time_step', type=float, default=0.01, help='Time step in Myr')
-    # parser.add_argument('--iters', type=int, default=100, help='Iterations of MC sim to run')
-    # args = parser.parse_args()
-
     # add to arguments to make sure sim has everything it needs
     # addtl_args = {'iters' : 100}
     addtl_args = {'iters' : '1'}

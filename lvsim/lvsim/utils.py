@@ -37,6 +37,10 @@ class LvSimCfg():
         parser.add_argument('--use_prod_fn',
                             action='store_true',
                             help='Flag for using the production function directly to generate craters instead of the equilibrium SFD')
+        parser.add_argument('--iters',
+                            type=int,
+                            default=100,
+                            help='Iterations for Monte Carlo simulations')
 
         # args for synthterrain
         parser.add_argument('--bbox',
