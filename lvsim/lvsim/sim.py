@@ -104,16 +104,20 @@ def remove_old_craters(args):
     
     if np.any(inside_rad):
         out_val = curr_crater[0]
+        if return_age:
+            max_age_new = np.max(newer_craters[inside_rad, 1]) # "oldest" crater
+            age = curr_crater[1] + max_age_new
+            return (out_val, age)
+        else:
+            return out_val
     else:
         out_val = -1.0
+        if return_age:
+            age = np.nan
+            return (out_val, age)
+        else:
+            return out_val
     
-    if return_age:
-        max_age_new = np.max(newer_craters[inside_rad, 1])
-        age = curr_crater[1] + max_age_new
-        return (out_val, age)
-    else:
-        return out_val
-
 
 # Make a crater heightmap based on initial surface and dataframe of craters
 def make_heightmap(df, init_surface, tf):
