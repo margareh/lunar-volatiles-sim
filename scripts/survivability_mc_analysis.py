@@ -40,7 +40,10 @@ def run_sim(lvsim):
         new_rows = compute_crater_ages(old_craters_df, lvsim.crater_df)
 
         # add to database of deleted craters (age, diameter, d/D)
-        age_df = pd.concat([age_df, new_rows])
+        if len(age_df) > 0:
+            age_df = pd.concat([age_df, new_rows])
+        else:
+            age_df = copy.copy(new_rows)
 
     return age_df
 
@@ -50,7 +53,7 @@ def compute_crater_ages(old_df, new_df):
     # crater dataframes have columns: x, y, diameter, age, d/D
 
     # filter to craters that were in old but not new
-    removed_craters = old_df[~old_df.index.isin(new_df.index)]
+    removed_craters = old_df.copy()[~old_df.index.isin(new_df.index)]
     print(old_df.index)
     print(new_df.index)
     print(removed_craters.index)
