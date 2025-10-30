@@ -113,7 +113,7 @@ class LvSimCfg():
         
         # parse args at the end and save
         # this also adds any additional arguments that were added
-        args_to_parse = copy.copy(sys.argv)
+        args_to_parse = copy.copy(sys.argv[1:])
         if addtl_args is not None:
             for k, v in addtl_args.items():
                 args_to_parse.append('--'+k)
