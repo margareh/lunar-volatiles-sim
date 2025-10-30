@@ -133,8 +133,8 @@ if __name__ == "__main__":
 
     # add to arguments to make sure sim has everything it needs
     # addtl_args = {'iters' : 100}
-    addtl_args = {'iters' : 1}
-    cfg = LvSimCfg(addtl_args) # this defines a lot of things for us!
+    addtl_args = {'iters' : '1'}
+    cfg = LvSimCfg(addtl_args=addtl_args) # this defines a lot of things for us!
     cfg.args.use_prod_fn = True # want to make sure we use the production function here
     
     # run simulations
@@ -149,9 +149,11 @@ if __name__ == "__main__":
 
         # run simulation and get results of survivability
         age_df = run_sim(lvsim)
+        print(len(age_df))
 
         # bin by diameter and compute avg and std dev of ages
         new_age_rows = get_summary(age_df)
+        print(len(new_age_rows))
 
         # append to overall dataset
         age_summ_df = pd.concat([age_summ_df, new_age_rows])
