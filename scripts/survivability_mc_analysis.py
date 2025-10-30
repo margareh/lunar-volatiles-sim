@@ -130,7 +130,7 @@ if __name__ == "__main__":
     cfg.args.use_prod_fn = True # want to make sure we use the production function here
     
     # run simulations
-    init_seed = 356789746351
+    init_seed = 3567897
     age_summ_df = pd.DataFrame(columns=['iter', 'diam_bin', 'count', 'avg_age', 'stdev_age', 'avg_dD', 'stdev_dD'])
     for i in range(cfg.args.iters):
         
