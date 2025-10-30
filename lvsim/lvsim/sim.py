@@ -390,7 +390,7 @@ class LvSim():
     def illuminate(self):
         
         start = time.time()
-        new_illumin_frac, new_psrs = illuminate_cuda(self.elev_db, self.eph, self.grid_ll, psr_threshold=cfg.args.psr_threshold)
+        new_illumin_frac, new_psrs = illuminate_cuda(self.elev_db, self.eph, self.grid_ll, psr_threshold=self.cfg.args.psr_threshold)
         end = time.time()
         print("Illumination runtime = %4.4f s" % (end-start))
         self.illumin_frac = new_illumin_frac
