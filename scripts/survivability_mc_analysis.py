@@ -45,8 +45,6 @@ def run_sim(lvsim):
         
         i += 1
 
-        i += 1
-
     return age_df
 
 
