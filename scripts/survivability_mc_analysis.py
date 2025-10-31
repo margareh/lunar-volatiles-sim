@@ -42,6 +42,8 @@ def run_sim(lvsim):
             age_df = pd.concat([age_df, new_rows])
         else:
             age_df = copy.copy(new_rows)
+        
+        i += 1
 
         i += 1
 
