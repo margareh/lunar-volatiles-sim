@@ -45,7 +45,7 @@ def run_sim(lvsim):
         
         i += 1
 
-    return age_df
+    return age_df, lvsim.crater_df
 
 
 # compute crater ages for craters removed during one time step
@@ -159,25 +159,29 @@ if __name__ == "__main__":
         lvsim = LvSim(cfg)
 
         # run simulation and get results of survivability
-        age_df = run_sim(lvsim)
+        age_df, crater_df = run_sim(lvsim)
         # print(len(age_df))
 
-        # bin by diameter and compute avg and std dev of ages
-        new_age_rows = get_summary(age_df)
-        print(new_age_rows)
-        new_age_rows['iter'] = i
-        new_age_rows.set_index([new_age_rows.index, 'iter'], inplace=True)
+        # plot the distribution of craters that were removed vs remaining by age
+        fig, ax = plt.subplots(1, 2, figsize=(10,20))
+        ax[0].hist(age_df['age'], bins=20, color='tab:blue')
+        ax[1].hist(crater_df['age'], bins=20, color='tab:orange')
+        plt.savefig(os.path.join(cfg.args.outpath, 'crater_age_dist_'+str(i)+'.png'), dpi=100, bbox_inches='tight')
+        plt.close()
 
-        # append to overall dataset
-        if i > 0:
-            age_summ_df = pd.concat([age_summ_df, new_age_rows])
-        else:
-            age_summ_df = copy.copy(new_age_rows)
-        # print(len(age_summ_df))
+        # # bin by diameter and compute avg and std dev of ages
+        # new_age_rows = get_summary(age_df)
+        # print(new_age_rows)
+        # new_age_rows['iter'] = i
+        # new_age_rows.set_index([new_age_rows.index, 'iter'], inplace=True)
 
-    # save the results
-    age_summ_df.to_csv(os.path.join(cfg.args.outpath, 'mc_crater_ages.csv'))
+        # # append to overall dataset
+        # if i > 0:
+        #     age_summ_df = pd.concat([age_summ_df, new_age_rows])
+        # else:
+        #     age_summ_df = copy.copy(new_age_rows)
+        # # print(len(age_summ_df))
 
-    # plot the results
-
+        # save the results
+        # age_summ_df.to_csv(os.path.join(cfg.args.outpath, 'mc_crater_ages.csv'))
 
