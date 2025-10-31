@@ -20,7 +20,6 @@ def run_sim(lvsim):
 
     # run sim through all time steps
     i = 0
-    age_df = pd.DataFrame(columns=['diameter','age','d/D'])
     while lvsim.t-lvsim.cfg.args.time_delta >= 0:
 
         # Take a step
@@ -37,8 +36,9 @@ def run_sim(lvsim):
 
         # compute number of craters removed
         new_rows = compute_crater_ages(old_craters_df, lvsim.crater_df)
+        print(new_rows)
 
-        # add to database of deleted craters (age, diameter, d/D)
+        # add to database of deleted craters (age, diameter, d/D, type)
         if len(age_df) > 0:
             age_df = pd.concat([age_df, new_rows])
         else:
@@ -53,9 +53,9 @@ def compute_crater_ages(old_df, new_df):
 
     # filter to craters that were in old but not new
     removed_craters = old_df.copy()[~old_df.index.isin(new_df.index)]
-    print(old_df.index)
-    print(new_df.index)
-    print(removed_craters.index)
+    # print(old_df.index)
+    # print(new_df.index)
+    # print(removed_craters.index)
     removed_craters_np = np.array([removed_craters.index, removed_craters.age.values, removed_craters.diameter.values, removed_craters.x.values, removed_craters.y.values]).T
     new_craters_np = np.array([new_df.index, new_df.age.values, new_df.diameter.values, new_df.x.values, new_df.y.values]).T
 
@@ -67,12 +67,17 @@ def compute_crater_ages(old_df, new_df):
         # out is a list of tuples: (index of removed crater, age at removal)
 
     # create dataframe of new rows of removed craters
-    new_ages = [a for (_,a) in out]
-    removed_craters['age'] = new_ages
-    removed_craters.drop(['x', 'y'], inplace=True, axis=1)
-    return removed_craters
+    # new_ages = [a for (_,a) in out]
+    new_ages = pd.DataFrame(out, columns=['index', 'age'])
+    new_ages.set_index('index', inplace=True)
+    removed_craters.drop(['x', 'y', 'age'], inplace=True, axis=1)
+    new_ages_all = pd.merge(removed_craters, new_ages, left_index=True, right_index=True)
+    new_ages_all['type'] = 'IMPACT'
+    new_ages_all.loc[np.isnan(new_ages_all['age']), 'type'] = 'DIFFUSION'
+    return new_ages_all
 
 
+# summarize data on removed craters by type of removal (impact or diffusion) and age bin
 def get_summary(age_df):
 
     # add bin column to group by
@@ -96,14 +101,15 @@ def get_summary(age_df):
     age_df.loc[age_df['diameter'] > 700, 'diam_bin'] = '700-800'
     age_df.loc[age_df['diameter'] > 800, 'diam_bin'] = '800-900'
     age_df.loc[age_df['diameter'] > 900, 'diam_bin'] = '900-1000'
-    age_df.set_index('diam_bin')
+    age_df.set_index([age_df.index, 'diam_bin', 'type'], inplace=True)
+
     age_df.drop('diameter', axis=1, inplace=True)
 
     # make age be myr instead of yr
     age_df['age'] /= 1e6
 
     # compute aggregate statistics
-    summ_df = age_df.groupby('diam_bin').agg(
+    summ_df = age_df.groupby(['diam_bin', 'type']).agg(
         count = pd.NamedAgg(column='age', aggfunc='count'),
         avg_age = pd.NamedAgg(column='age', aggfunc='mean'),
         std_age = pd.NamedAgg(column='age', aggfunc='std'),
@@ -135,7 +141,6 @@ if __name__ == "__main__":
     
     # run simulations
     init_seed = 3567897
-    age_summ_df = pd.DataFrame(columns=['iter', 'diam_bin', 'count', 'avg_age', 'std_age', 'avg_dD', 'std_dD'])
     for i in range(cfg.args.iters):
         
         # setup for this iteration
@@ -149,9 +154,9 @@ if __name__ == "__main__":
 
         # bin by diameter and compute avg and std dev of ages
         new_age_rows = get_summary(age_df)
-        # print(len(new_age_rows))
+        print(new_age_rows)
         new_age_rows['iter'] = i
-        new_age_rows.set_index(['iter', 'diam_bin'])
+        new_age_rows.set_index([new_age_rows.index, 'iter'], inplace=True)
 
         # append to overall dataset
         if len(age_summ_df) > 0:
