@@ -24,7 +24,6 @@ def run_sim(lvsim):
 
         # Take a step
         lvsim.t -= lvsim.cfg.args.time_delta
-        i += 1
 
         # print progress and store initial set of craters
         print("Now on " + str(lvsim.t) + " Ga")
@@ -39,10 +38,12 @@ def run_sim(lvsim):
         print(new_rows)
 
         # add to database of deleted craters (age, diameter, d/D, type)
-        if len(age_df) > 0:
+        if i > 1:
             age_df = pd.concat([age_df, new_rows])
         else:
             age_df = copy.copy(new_rows)
+
+        i += 1
 
     return age_df
 
@@ -70,10 +71,10 @@ def compute_crater_ages(old_df, new_df):
     # new_ages = [a for (_,a) in out]
     new_ages = pd.DataFrame(out, columns=['index', 'age'])
     new_ages.set_index('index', inplace=True)
-    removed_craters.drop(['x', 'y', 'age'], inplace=True, axis=1)
+    removed_craters.drop(['x', 'y', 'age', 'surface', 'new'], inplace=True, axis=1)
     new_ages_all = pd.merge(removed_craters, new_ages, left_index=True, right_index=True)
     new_ages_all['type'] = 'IMPACT'
-    new_ages_all.loc[np.isnan(new_ages_all['age']), 'type'] = 'DIFFUSION'
+    new_ages_all.loc[new_ages_all['age'] < 0, 'type'] = 'DIFFUSION'
     return new_ages_all
 
 
@@ -134,7 +135,7 @@ if __name__ == "__main__":
     # print(args_to_parse)
 
     # add to arguments to make sure sim has everything it needs
-    # addtl_args = {'iters' : 100}
+    #addtl_args = {'iters' : '100'}
     addtl_args = {'iters' : '1'}
     cfg = LvSimCfg(addtl_args=addtl_args) # this defines a lot of things for us!
     cfg.args.use_prod_fn = True # want to make sure we use the production function here
@@ -159,10 +160,10 @@ if __name__ == "__main__":
         new_age_rows.set_index([new_age_rows.index, 'iter'], inplace=True)
 
         # append to overall dataset
-        if len(age_summ_df) > 0:
+        if i > 0:
             age_summ_df = pd.concat([age_summ_df, new_age_rows])
         else:
-            copy.copy(age_summ_df)
+            age_summ_df = copy.copy(new_age_rows)
         # print(len(age_summ_df))
 
     # save the results

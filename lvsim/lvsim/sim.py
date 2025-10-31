@@ -113,7 +113,7 @@ def remove_old_craters(args):
     else:
         out_val = -1.0
         if return_age:
-            age = np.nan
+            age = -1.0
             return (out_val, age)
         else:
             return out_val
