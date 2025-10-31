@@ -71,12 +71,21 @@ def compute_crater_ages(old_df, new_df):
 
     # create dataframe of new rows of removed craters
     # new_ages = [a for (_,a) in out]
-    new_ages = pd.DataFrame(out, columns=['index', 'age'])
+    new_ages = pd.DataFrame(out, columns=['index', 'age_rm'])
     new_ages.set_index('index', inplace=True)
-    removed_craters.drop(['x', 'y', 'age', 'surface', 'new'], inplace=True, axis=1)
+    
+    removed_craters.drop(['x', 'y', 'surface', 'new'], inplace=True, axis=1)
     new_ages_all = pd.merge(removed_craters, new_ages, left_index=True, right_index=True)
+    
     new_ages_all['type'] = 'IMPACT'
-    new_ages_all.loc[new_ages_all['age'] < 0, 'type'] = 'DIFFUSION'
+    new_ages_all.loc[new_ages_all['age_rm'] < 0, 'type'] = 'DIFFUSION'
+    
+    new_ages_all['age_at_rm'] = new_ages_all['age_rm']
+    new_ages_all.loc[new_ages_all['age_rm'] < 0, 'age_at_rm'] = new_ages_all['age']
+    
+    new_ages_all.drop(['age', 'age_rm'], inplace=True, axis=1)
+    new_ages_all.rename(columns={'age_at_rm' : 'age'}, inplace=True)
+    
     return new_ages_all
 
 
