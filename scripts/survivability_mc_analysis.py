@@ -147,7 +147,7 @@ if __name__ == "__main__":
     #addtl_args = {'iters' : '100'}
     addtl_args = {'iters' : '1'}
     cfg = LvSimCfg(addtl_args=addtl_args) # this defines a lot of things for us!
-    cfg.args.use_prod_fn = True # want to make sure we use the production function here
+    # cfg.args.use_prod_fn = True # want to make sure we use the production function here
     
     # run simulations
     init_seed = 3567897
@@ -163,9 +163,11 @@ if __name__ == "__main__":
         # print(len(age_df))
 
         # plot the distribution of craters that were removed vs remaining by age
-        fig, ax = plt.subplots(1, 2, figsize=(10,20))
-        ax[0].hist(age_df['age'], bins=20, color='tab:blue')
-        ax[1].hist(crater_df['age'], bins=20, color='tab:orange')
+        fig, ax = plt.subplots(1, 2, figsize=(20,10))
+        ax[0].hist(age_df['age'] / 1e6, bins=30, color='tab:blue')
+        ax[1].hist(crater_df['age'] / 1e6, bins=30, color='tab:orange')
+        ax[0].set_title("Removed Craters by Age (Myr)")
+        ax[1].set_title("Remaining Craters by Age (Myr)")
         plt.savefig(os.path.join(cfg.args.outpath, 'crater_age_dist_'+str(i)+'.png'), dpi=100, bbox_inches='tight')
         plt.close()
 
