@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.colors import LightSource
 import imageio
 import rasterio as rs
 import richdem as rd
@@ -174,6 +175,14 @@ def plot_slope_hist(file, args):
         plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_slope_hist.png')), dpi=100, bbox_inches='tight')
         plt.close()
 
+    return surf, haworth_dem
+
+def get_fft(img):
+    ft = np.fft.ifftshift(img)
+    ft = np.fft.fft2(ft)
+    ft = np.fft.fftshift(ft)
+    return ft
+
 
 if __name__ == "__main__":
 
@@ -201,19 +210,45 @@ if __name__ == "__main__":
     plot_sfd('crater_list_0.csv', args) # last one
 
     # get slope histogram and compare to Haworth DEM
-    plot_slope_hist('maps_'+first_step+'.npz', args)
-    plot_slope_hist('maps_0.npz', args)
+    surf_dem_first, haworth_dem = plot_slope_hist('maps_'+first_step+'.npz', args)
+    surf_dem_last, _ = plot_slope_hist('maps_0.npz', args)
 
-    # create gifs of maps
-    out_files = os.listdir(args.datapath)
-    plot_files = os.listdir(os.path.join(args.datapath, 'plots'))
-    time_steps = [int(re.sub('\D', '', f)) for f in plot_files]
-    # map_files = [f for f in out_files if f.find("maps") >= 0]
-    # crater_files = [f for f in out_files if f.find("crater") >= 0]
+    # hillshaded DEMs and ffts of DEMs
+    haworth_ft = get_fft(haworth_dem)
+    first_ft = get_fft(surf_dem_first)
+    last_ft = get_fft(surf_dem_last)
+
+    ls = LightSource(azdeg=315, altdeg=6) # 6 degree altitude (like lunar south pole), from NW
+    fig, ax = plt.subplots(2, 3, figsize=(30, 20))
+
+    ax[0][0].imshow(ls.hillshade(haworth_dem), cmap='gray')
+    ax[0][1].imshow(ls.hillshade(surf_dem_first), cmap='gray')
+    ax[0][2].imshow(ls.hillshade(surf_dem_last), cmap='gray')
+
+    ax[0][0].set_title('Haworth')
+    ax[0][1].set_title('First Surface')
+    ax[0][2].set_title('Last Surface')
+
+    ax[1][0].imshow(haworth_ft, cmap='gray')
+    ax[1][1].imshow(first_ft, cmap='gray')
+    ax[1][2].imshow(last_ft, cmap='gray')
+
+    if args.plot:
+        plt.show()
+    else:
+        plt.savefig(os.path.join(args.datapath, 'figs', 'hillshade_dems_ffts.png'), dpi=100, bbox_inches='tight')
+        plt.close()
+
+    # # create gifs of maps
+    # out_files = os.listdir(args.datapath)
+    # plot_files = os.listdir(os.path.join(args.datapath, 'plots'))
+    # time_steps = [int(re.sub('\D', '', f)) for f in plot_files]
+    # # map_files = [f for f in out_files if f.find("maps") >= 0]
+    # # crater_files = [f for f in out_files if f.find("crater") >= 0]
     
-    plot_files_sort = [f for _, f in sorted(zip(time_steps, plot_files), reverse=True)]
-    # crater_files_sort = [f for _, f in sorted(zip(time_steps, crater_files), reverse=True)]
-    T = len(plot_files_sort)
+    # plot_files_sort = [f for _, f in sorted(zip(time_steps, plot_files), reverse=True)]
+    # # crater_files_sort = [f for _, f in sorted(zip(time_steps, crater_files), reverse=True)]
+    # T = len(plot_files_sort)
 
     # imgs = []
     # for t in range(T):
