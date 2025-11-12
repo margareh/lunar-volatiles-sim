@@ -27,9 +27,10 @@ print(HALFSIZE)
 if __name__ == "__main__":
 
     # create crater dataframe with craters of known diameter
-    ages, diams = np.meshgrid(np.arange(TSTART, TEND+TSTEP, TSTEP), D)
+    A = np.arange(TSTART, TEND+TSTEP, TSTEP)
+    ages, diams = np.meshgrid(A, D)
     nd = len(D)
-    na = len(np.arange(TSTART, TEND+TSTEP, TSTEP))
+    na = len(A)
     np_df = np.dstack((ages, diams)).reshape((na*nd, 2))
 
     crater_df = pd.DataFrame(data=np_df, columns=['age', 'diameter'])
@@ -43,6 +44,9 @@ if __name__ == "__main__":
     surfs_np = np.array(crater_df["surface"].tolist())
     new_ratios, new_surfs = diffusion_cuda(crater_df["diameter"], crater_df["d/D"], crater_df["age"], surfs_np, D=DOMSIZE)
 
+    # save numpy file
+    np.savez('../output/diffusion_profile_out.npz',new_surfs=new_surfs)
+
     # generate new crater profiles
     crater_df['d/D'] = new_ratios
     crater_df["surface"] = [s for s in new_surfs[:,...]]
@@ -55,7 +59,7 @@ if __name__ == "__main__":
     # print(len(craters_3km))
 
     # plot the profiles against what's expected
-    fig, ax = plt.subplots((1,3), figsize=(30, 10))
+    fig, ax = plt.subplots(1,3, figsize=(30, 10))
 
     ax[0].set_title('D = 300 m')
     ax[1].set_title('D = 1 km')
@@ -71,12 +75,14 @@ if __name__ == "__main__":
             craters = copy.copy(craters_1km)
         else:
             craters = copy.copy(craters_3km)
+        # print(len(craters))
 
         diam = D[i]
-        dists = np.arange(0, DOMSIZE+1) * (diam / (DOMSIZE+1))
+        dists = np.arange(0, DOMSIZE) * (2 * diam / (DOMSIZE))
 
-        for j in range(len(ages)):
-            surf_np = craters[craters.age == ages[j]]['surface'].to_numpy()
+        for j in range(len(A)):
+            curr_crater = craters[craters.age == A[j]]
+            surf_np = curr_crater.surface.to_numpy()[0]
             surf_profile = surf_np[HALFSIZE-1, :]
             ax[i].plot(dists, surf_profile)
 
