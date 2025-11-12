@@ -170,6 +170,7 @@ class LvSim():
 
         # crater datafame and surface are initially empty and flat
         self.crater_df = pd.DataFrame(columns=['x','y','diameter','age','d/D','surface','new'])
+        self.init_surface = np.zeros((math.ceil(self.window.height), math.ceil(self.window.width)))
         self.create_surface()
         self.size = self.surface.shape[0]
 
@@ -255,13 +256,14 @@ class LvSim():
     # based on code to return surfaces in diffuse_d_over_D_by_bin
     def create_surface(self):
         if len(self.crater_df) > 0:
-            # add the new craters to the previous surface
-            new_craters = self.crater_df[self.crater_df.new]
-            old_surf = copy.copy(self.surface)
-            self.surface = make_heightmap(new_craters, old_surf, self.transform)
+            # add the craters in the dataframe to the initial surface
+            # initial surface = flat + whatever craters have stopped "evolving"
+            # i.e. their d/D ratio is too low to degrade them anymore and they 
+            # are no longer in our dataset
+            self.surface = make_heightmap(self.crater_df, self.init_surface, self.transform)
         else:
             # initialize to flat surface
-            self.surface = np.zeros((math.ceil(self.window.height), math.ceil(self.window.width)))
+            self.surface = copy.copy(self.init_surface)
 
     # Evolve the terrain from one time step to the next
     def evolve_terrain(self):
@@ -352,12 +354,18 @@ class LvSim():
             all_df.loc[all_df.new == False, "age"] = prev_ages + self.cfg.args.time_delta * 1e9
 
         print("Number of craters before depth-to-diam filtering: %d" % (len(all_df)))
-        drop_inds = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold].index
-        all_df.drop(drop_inds, axis=0, inplace=True)
+        drop_df = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold]
+
+        # add craters that are being removed from the list to our initial surface
+        # so we keep them in the heightmap in the future
+        self.init_surface = make_heightmap(drop_df, self.init_surface, self.transform)
+
+        # drop the craters from the dataframe
+        all_df.drop(drop_df.index, axis=0, inplace=True)
         self.crater_df = copy.copy(all_df)
         print("Current number of craters: %d" % (len(self.crater_df)))
 
-        # Update stored surface
+        # Update stored surface with craters in the dataset
         self.create_surface()
 
     # Compute horizons for a given terrain map
