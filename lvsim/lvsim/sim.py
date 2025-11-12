@@ -255,8 +255,12 @@ class LvSim():
     # based on code to return surfaces in diffuse_d_over_D_by_bin
     def create_surface(self):
         if len(self.crater_df) > 0:
-            self.surface = make_heightmap(self.crater_df, np.zeros((math.ceil(self.window.height), math.ceil(self.window.width))), self.transform)
+            # add the new craters to the previous surface
+            new_craters = self.crater_df[self.crater_df.new]
+            old_surf = copy.copy(self.surface)
+            self.surface = make_heightmap(new_craters, old_surf, self.transform)
         else:
+            # initialize to flat surface
             self.surface = np.zeros((math.ceil(self.window.height), math.ceil(self.window.width)))
 
     # Evolve the terrain from one time step to the next
