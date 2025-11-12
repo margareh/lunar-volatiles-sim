@@ -356,12 +356,14 @@ class LvSim():
         print("Number of craters before depth-to-diam filtering: %d" % (len(all_df)))
         drop_df = all_df[all_df["d/D"] < self.cfg.args.d_to_D_threshold]
 
-        # add craters that are being removed from the list to our initial surface
-        # so we keep them in the heightmap in the future
-        self.init_surface = make_heightmap(drop_df, self.init_surface, self.transform)
+        if len(drop_df) > 0:
+            # add craters that are being removed from the list to our initial surface
+            # so we keep them in the heightmap in the future
+            self.init_surface = make_heightmap(drop_df, self.init_surface, self.transform)
 
-        # drop the craters from the dataframe
-        all_df.drop(drop_df.index, axis=0, inplace=True)
+            # drop the craters from the dataframe
+            all_df.drop(drop_df.index, axis=0, inplace=True)
+        
         self.crater_df = copy.copy(all_df)
         print("Current number of craters: %d" % (len(self.crater_df)))
 
