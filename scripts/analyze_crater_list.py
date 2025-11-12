@@ -230,9 +230,9 @@ if __name__ == "__main__":
     ax[0][1].set_title('First Surface')
     ax[0][2].set_title('Last Surface')
 
-    ax[1][0].imshow(haworth_ft, cmap='gray')
-    ax[1][1].imshow(first_ft, cmap='gray')
-    ax[1][2].imshow(last_ft, cmap='gray')
+    ax[1][0].imshow(abs(haworth_ft), cmap='gray')
+    ax[1][1].imshow(abs(first_ft), cmap='gray')
+    ax[1][2].imshow(abs(last_ft), cmap='gray')
 
     if args.plot:
         plt.show()
