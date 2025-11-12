@@ -160,7 +160,7 @@ def plot_slope_hist(file, args):
     if args.plot:
         plt.show()
     else:
-        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_slope_imgs.png')), dpi=100, bbox_inches='tight')
+        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.npz', '_slope_imgs.png')), dpi=100, bbox_inches='tight')
         plt.close()
 
     # plot both on same histogram
@@ -172,11 +172,12 @@ def plot_slope_hist(file, args):
     if args.plot:
         plt.show()
     else:
-        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_slope_hist.png')), dpi=100, bbox_inches='tight')
+        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.npz', '_slope_hist.png')), dpi=100, bbox_inches='tight')
         plt.close()
 
     return surf, haworth_dem
 
+# get FFT shifted to center for an image
 def get_fft(img):
     ft = np.fft.ifftshift(img)
     ft = np.fft.fft2(ft)
