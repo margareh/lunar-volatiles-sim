@@ -123,6 +123,6 @@ if __name__ == "__main__":
     ax[1].set_title('diffusion_cuda')
     ax[2].set_title('synthterrain binned')
 
-    plt.show()
-    # plt.savefig('../figs/diffusion_comparison.png', dpi=100, bbox_inches='tight')
-    # plt.close()
+    # plt.show()
+    plt.savefig('../figs/diffusion_comparison.png', dpi=100, bbox_inches='tight')
+    plt.close()
