@@ -27,7 +27,7 @@ print(HALFSIZE)
 if __name__ == "__main__":
 
     # create crater dataframe with craters of known diameter
-    A = np.arange(TSTART, TEND+TSTEP, TSTEP)
+    A = np.arange(TSTART, TEND+TSTEP, TSTEP) * 1e9
     ages, diams = np.meshgrid(A, D)
     nd = len(D)
     na = len(A)
