@@ -48,9 +48,9 @@ if __name__ == "__main__":
     # also run diffusion using synthterrain's model to compare against
     # new_ratios_synth, new_surfs_synth = diffuse_d_over_D(crater_df["diameter"], crater_df["age"], domain_size=DOMSIZE, return_surface=True)
     synth_df = copy.copy(crater_df)
-    synth_df[["d/D", "surface"]] = synth_df.progress_apply(
+    synth_df[["d/D", "surface"]] = synth_df.apply(
         lambda crater: diffuse_d_over_D(
-            crater["diameter"], crater["age"], return_surface=True,
+            crater["diameter"], crater["age"], domain_size=DOMSIZE, return_surface=True,
         ),
         axis=1,
         result_type="expand",
