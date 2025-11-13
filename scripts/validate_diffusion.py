@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from lvsim.crater import profile, stopar_fresh_dd
 from diffusion.diffusion import diffusion_cuda
+from synthterrain.crater.diffusion import diffuse_d_over_D
 
 # diameters in m to generate diffusion profiles for
 D = [300, 1000, 3000]
@@ -44,8 +45,19 @@ if __name__ == "__main__":
     surfs_np = np.array(crater_df["surface"].tolist())
     new_ratios, new_surfs = diffusion_cuda(crater_df["diameter"], crater_df["d/D"], crater_df["age"], surfs_np, D=DOMSIZE)
 
+    # also run diffusion using synthterrain's model to compare against
+    # new_ratios_synth, new_surfs_synth = diffuse_d_over_D(crater_df["diameter"], crater_df["age"], domain_size=DOMSIZE, return_surface=True)
+    synth_df = copy.copy(crater_df)
+    synth_df[["d/D", "surface"]] = synth_df.progress_apply(
+        lambda crater: diffuse_d_over_D(
+            crater["diameter"], crater["age"], return_surface=True,
+        ),
+        axis=1,
+        result_type="expand",
+    )
+
     # save numpy file
-    np.savez('../output/diffusion_profile_out.npz',new_surfs=new_surfs)
+    np.savez('../output/diffusion_profile_out.npz', new_surfs=new_surfs, new_surfs_synth=np.array(synth_df["surface"].tolist()))
 
     # generate new crater profiles
     crater_df['d/D'] = new_ratios
@@ -87,4 +99,39 @@ if __name__ == "__main__":
             ax[i].plot(dists, surf_profile)
 
     plt.savefig('../output/diffusion_profiles.png', dpi=100, bbox_inches='tight')
+    plt.close()
+
+    # do the same for the synthterrain profiles
+    synth_300m = synth_df[synth_df.diameter == 300]
+    synth_1km = synth_df[synth_df.diameter == 1000]
+    synth_3km = synth_df[synth_df.diameter == 3000]
+
+    fig, ax = plt.subplots(1,3, figsize=(30, 10))
+
+    ax[0].set_title('D = 300 m')
+    ax[1].set_title('D = 1 km')
+    ax[2].set_title('D = 3 km')
+
+    for i in range(3):
+        ax[i].set_xlabel('Distance (m)')
+        ax[i].set_ylabel('Elevation (m)')
+        
+        if i == 0:
+            craters = copy.copy(synth_300m)
+        elif i == 1:
+            craters = copy.copy(synth_1km)
+        else:
+            craters = copy.copy(synth_3km)
+        # print(len(craters))
+
+        diam = D[i]
+        dists = np.arange(0, DOMSIZE) * (2 * diam / (DOMSIZE))
+
+        for j in range(len(A)):
+            curr_crater = craters[craters.age == A[j]]
+            surf_np = curr_crater.surface.to_numpy()[0]
+            surf_profile = surf_np[HALFSIZE-1, :]
+            ax[i].plot(dists, surf_profile)
+
+    plt.savefig('../output/diffusion_profiles_synth.png', dpi=100, bbox_inches='tight')
     plt.close()
