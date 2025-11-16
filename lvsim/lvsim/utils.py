@@ -55,7 +55,7 @@ class LvSimCfg():
         parser.add_argument('--d_lim',
                             type=float,
                             nargs=2,
-                            default=[1, 1000],
+                            default=[2, 1000],
                             help='Minimum and maximum allowed crater diameters in m')
         parser.add_argument('--csfd',
                             type=str,
