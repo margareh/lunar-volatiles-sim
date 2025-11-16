@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 
 from numbers import Number
 from analyze_crater_list import viper_sfd
+from synthterrain.crater.age import equilibrium_age
+from synthterrain.crater import functions, determine_production_function
+from synthterrain.crater.functions import VIPER_Env_Spec
 
 # SFD from synthterrain
 def csfd(d):
@@ -70,3 +73,23 @@ if __name__ == "__main__":
     ax.set_yscale('log')
     ax.set_xscale('log')
     plt.show()
+
+    # get equilibrium age for each of these craters
+    crater_dist = VIPER_Env_Spec(a=args.diam_range[0], b=args.diam_range[1])
+    prod_fn = prod_fn = determine_production_function(crater_dist.a, crater_dist.b)
+    eq_ages = equilibrium_age(diams, prod_fn.csfd, crater_dist.csfd)
+
+    # alpha = (2 * age - 1) / (age - 1)
+    alphas = (2 * eq_ages - 1) / (eq_ages - 1)
+    print(eq_ages)
+    print(alphas)
+
+    # # plot these and attempt to compute a power law distribution using them as means
+    # # "expected max age"
+    # fig, ax = plt.subplots(1, 2)
+    # ax[0].plot(diams, eq_ages)
+    # ax[0].set_yscale('log')
+    # ax[0].set_xscale('log')
+    # ax[1].plot(diams, alphas)
+    # plt.show()
+
