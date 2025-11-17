@@ -82,7 +82,9 @@ if __name__ == "__main__":
     # alpha = (2 * age - 1) / (age - 1)
     alphas = (2 * eq_ages - 1) / (eq_ages - 1)
     print(eq_ages[0:10])
-    print(alphas[0:10])
+    print(alphas[0:10]) # these are pretty much 2 for everything (ages are large enough)
+    # get larger differences from 2 when scaling ages to Myr
+    alphas2 = eq_ages / (eq_ages - 1) # in this instance, will pretty much be 1 for everything
 
     # # plot these and attempt to compute a power law distribution using them as means
     # # "expected max age"
