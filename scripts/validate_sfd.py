@@ -11,6 +11,7 @@ from analyze_crater_list import viper_sfd
 from synthterrain.crater.age import equilibrium_age
 from synthterrain.crater import functions, determine_production_function
 from synthterrain.crater.functions import VIPER_Env_Spec
+from synthterrain.crater.diffusion import kappa_diffusivity
 
 # SFD from synthterrain
 def csfd(d):
@@ -94,4 +95,13 @@ if __name__ == "__main__":
     # ax[0].set_xscale('log')
     # ax[1].plot(diams, alphas)
     # plt.show()
+
+    # get equilibrium lifetimes to compare with Fassett et al (2022)
+    diams2 = np.array([1, 1.41, 2, 2.83, 4, 5.66, 8, 10, 11.31, 16, 20, 22.63, 32, 40, 45.25, 64, 80, 90.51, 128, 160, 181])
+    eq_ages = equilibrium_age(diams2, prod_fn.csfd, crater_dist.csfd) * 1e-6
+    print(eq_ages) # Myr
+
+    # diffusivities
+    k = kappa_diffusivity(diams2) * 1e6
+    print(k) # m^2 / Myr
 
