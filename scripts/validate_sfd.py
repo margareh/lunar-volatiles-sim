@@ -11,7 +11,26 @@ from analyze_crater_list import viper_sfd
 from synthterrain.crater.age import equilibrium_age
 from synthterrain.crater import functions, determine_production_function
 from synthterrain.crater.functions import VIPER_Env_Spec
-from synthterrain.crater.diffusion import kappa_diffusivity
+
+# edited from synthterrain to take in arrays
+def kappa_diffusivity(diams):
+
+    k = np.ones_like(diams) * 0.0155
+    k[diams > 11.2] = 1.55e-3 * np.power(diams[diams > 11.2], 0.974)
+    k[diams >= 45] = 1.23e-3 * np.power(diams[diams >= 45], 0.8386)
+    k[diams >= 125] = 5.2e-3 * np.power(diams[diams >= 125], 1.3)
+
+    # if diameter <= 11.2:
+    #     k = 0.0155  # m2/myr
+    # elif diameter < 45:
+    #     k = 1.55e-3 * math.pow(diameter, 0.974)
+    # elif diameter < 125:
+    #     k = 1.23e-3 * math.pow(diameter, 0.8386)
+    # else:  # UNCONSTRAINED BY EQUILIBRIUM ABOVE 125m!!!!!!!
+    #     k = 5.2e-3 * math.pow(diameter, 1.3)
+
+    return k  # m2/Myr
+
 
 # SFD from synthterrain
 def csfd(d):
@@ -102,6 +121,6 @@ if __name__ == "__main__":
     print(eq_ages) # Myr
 
     # diffusivities
-    k = kappa_diffusivity(diams2) * 1e6
+    k = kappa_diffusivity(diams2)
     print(k) # m^2 / Myr
 
