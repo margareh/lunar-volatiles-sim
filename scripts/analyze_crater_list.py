@@ -165,9 +165,18 @@ def plot_slope_hist(file, args):
 
     # plot both on same histogram
     bins = np.linspace(0, max_slope, 30)
-    plt.hist(surf_slope_sample.flatten(), bins, alpha=0.5, label='Synthetic')
-    plt.hist(haworth_slope_sample.flatten(), bins, alpha=0.5, label='Haworth')
-    plt.legend(loc='upper right')
+    fig, ax = plt.subplots()
+    ax.hist(surf_slope_sample.flatten(), bins, alpha=0.5, label='Synthetic', color='tab:blue')
+    ax2 = ax.twinx()
+    ax2.hist(haworth_slope_sample.flatten(), bins, alpha=0.5, label='Haworth', color='tab:orange')
+    ax.set_ylabel('Synthetic')
+    ax2.set_ylabel('Haworth')
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    hs = h1+h2
+    labs = l1+l2
+    ax.legend(hs, labs, loc='upper right')
+    # plt.legend(loc='upper right')
 
     if args.plot:
         plt.show()
@@ -193,14 +202,15 @@ if __name__ == "__main__":
     parser.add_argument('--dim', type=int, default=200, help='Side dimensions of map (number of pixels)')
     parser.add_argument('--res', type=float, default=1., help='Resolution of map (meters per pixel)')
     parser.add_argument('--plot', action='store_true', help='Flag to plot analysis figures instead of saving them')
-    parser.add_argument('--age', type=float, default=3.79, help='Age of first non-flat terrain surface')
+    parser.add_argument('--age', type=float, nargs=2, default=[3.79, 0], help='Age of first and last non-flat terrain surface in Gyr')
     parser.add_argument('--haworth_dem', type=str, help='File path to Haworth DEM', default='/media/usb/ThesisWork/Volatiles/SouthPoleData/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif')
     args = parser.parse_args()
 
     if os.path.exists(os.path.join(args.datapath, 'figs')) == False:
         os.mkdir(os.path.join(args.datapath, 'figs'))
 
-    first_step = str(int(args.age * 1000))
+    first_step = str(int(args.age[0] * 1000))
+    last_step= str(int(args.age[1] * 1000))
 
     # crater ages and diameters over time to make sure these are trending correctly
     # plot_diam_by_age('crater_list_'+first_step+'.csv', args)
@@ -208,11 +218,11 @@ if __name__ == "__main__":
 
     # plot the SFD for the first and last time steps
     plot_sfd('crater_list_'+first_step+'.csv', args) # first one with craters
-    plot_sfd('crater_list_0.csv', args) # last one
+    plot_sfd('crater_list_'+last_step+'.csv', args) # last one
 
     # get slope histogram and compare to Haworth DEM
     surf_dem_first, haworth_dem = plot_slope_hist('maps_'+first_step+'.npz', args)
-    surf_dem_last, _ = plot_slope_hist('maps_0.npz', args)
+    surf_dem_last, _ = plot_slope_hist('maps_'+last_step+'.npz', args)
 
     # hillshaded DEMs and ffts of DEMs
     haworth_ft = get_fft(haworth_dem)
