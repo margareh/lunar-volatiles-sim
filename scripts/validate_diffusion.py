@@ -57,7 +57,7 @@ if __name__ == "__main__":
     )
 
     # save numpy file
-    np.savez('../output/diffusion_profile_out.npz', new_surfs=new_surfs, new_surfs_synth=np.array(synth_df["surface"].tolist()))
+    # np.savez('../output/diffusion_profile_out.npz', new_surfs=new_surfs, new_surfs_synth=np.array(synth_df["surface"].tolist()))
 
     # generate new crater profiles
     crater_df['d/D'] = new_ratios
@@ -114,27 +114,44 @@ if __name__ == "__main__":
             surf_profile = surf_np[HALFSIZE-1, :]
             ax[row][i % 3].plot(dists, surf_profile)
 
-    plt.savefig('../output/diffusion_profiles.png', dpi=100, bbox_inches='tight')
-    plt.close()
+    plt.show()
+    # plt.savefig('../output/diffusion_profiles.png', dpi=100, bbox_inches='tight')
+    # plt.close()
 
     # do the same for the synthterrain profiles
+    synth_10m = synth_df[synth_df.diameter == 10]
+    synth_50m = synth_df[synth_df.diameter == 50]
+    synth_100m = synth_df[synth_df.diameter == 100]
     synth_300m = synth_df[synth_df.diameter == 300]
     synth_1km = synth_df[synth_df.diameter == 1000]
     synth_3km = synth_df[synth_df.diameter == 3000]
 
-    fig, ax = plt.subplots(1,3, figsize=(30, 10))
+    fig, ax = plt.subplots(2, 3, figsize=(30, 20))
 
-    ax[0].set_title('D = 300 m')
-    ax[1].set_title('D = 1 km')
-    ax[2].set_title('D = 3 km')
+    ax[0][0].set_title('D = 10 m')
+    ax[0][1].set_title('D = 50 m')
+    ax[0][2].set_title('D = 100 m')
+    ax[1][0].set_title('D = 300 m')
+    ax[1][1].set_title('D = 1 km')
+    ax[1][2].set_title('D = 3 km')
 
-    for i in range(3):
-        ax[i].set_xlabel('Distance (m)')
-        ax[i].set_ylabel('Elevation (m)')
+    for i in range(6):
+        row = 0
+        if i > 2:
+            row = 1
+        
+        ax[row][i % 3].set_xlabel('Distance (m)')
+        ax[row][i % 3].set_ylabel('Elevation (m)')
         
         if i == 0:
-            craters = copy.copy(synth_300m)
+            craters = copy.copy(synth_10m)
         elif i == 1:
+            craters = copy.copy(synth_50m)
+        elif i == 2:
+            craters = copy.copy(synth_100m)
+        elif i == 3:
+            craters = copy.copy(synth_300m)
+        elif i == 4:
             craters = copy.copy(synth_1km)
         else:
             craters = copy.copy(synth_3km)
@@ -147,7 +164,8 @@ if __name__ == "__main__":
             curr_crater = craters[craters.age == A[j]]
             surf_np = curr_crater.surface.to_numpy()[0]
             surf_profile = surf_np[HALFSIZE-1, :]
-            ax[i].plot(dists, surf_profile)
+            ax[row][i % 3].plot(dists, surf_profile)
 
-    plt.savefig('../output/diffusion_profiles_synth.png', dpi=100, bbox_inches='tight')
-    plt.close()
+    plt.show()
+    # plt.savefig('../output/diffusion_profiles_synth.png', dpi=100, bbox_inches='tight')
+    # plt.close()
