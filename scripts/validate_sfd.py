@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from numbers import Number
 from analyze_crater_list import viper_sfd
 from synthterrain.crater.age import equilibrium_age
-from synthterrain.crater import functions, determine_production_function
+from synthterrain.crater import determine_production_function
 from synthterrain.crater.functions import VIPER_Env_Spec, Trask
 
 # edited from synthterrain to take in arrays
@@ -124,4 +124,6 @@ if __name__ == "__main__":
     # diffusivities
     k = kappa_diffusivity(diams2)
     print(k) # m^2 / Myr
+
+
 
