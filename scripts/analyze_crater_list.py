@@ -14,8 +14,9 @@ import imageio
 import rasterio as rs
 import richdem as rd
 
-# from synthterrain.crater import functions, determine_production_function
-# from synthterrain.crater.age import equilibrium_age
+from synthterrain.crater import determine_production_function
+from synthterrain.crater.functions import VIPER_Env_Spec
+from synthterrain.crater.age import equilibrium_age
 
 # define the size frequency distribution for VIPER
 def viper_sfd(d):
@@ -75,34 +76,34 @@ def plot_sfd(file, args):
         plt.close()
 
 
-# # plot the crater diameter by age
-# def plot_diam_by_age(file, args):
+# plot the crater diameter by age
+def plot_diam_by_age(file, args):
 
-#     # load
-#     crater_df = pd.read_csv(os.path.join(args.datapath, file))
-#     diams = crater_df.diameter.values
-#     min_d = np.min(diams)
-#     max_d = np.max(diams)
-#     bins = np.arange(int(min_d), int(max_d))
-#     ages = crater_df["age"].values
-#     diam_age_hist, _ = np.histogram(diams, bins=bins, weights=ages)
-#     diam_hist, _ = np.histogram(diams, bins=bins)
-#     diam_ages = diam_age_hist / diam_hist
+    # load
+    crater_df = pd.read_csv(os.path.join(args.datapath, file))
+    diams = crater_df.diameter.values
+    min_d = np.min(diams)
+    max_d = np.max(diams)
+    bins = np.arange(int(min_d), int(max_d))
+    ages = crater_df["age"].values
+    diam_age_hist, _ = np.histogram(diams, bins=bins, weights=ages)
+    diam_hist, _ = np.histogram(diams, bins=bins)
+    diam_ages = diam_age_hist / diam_hist
 
-#     # compute the equilibrium ages for each diameter
-#     crater_dist = getattr(functions, "VIPER_Env_Spec")(a=min_d, b=max_d)
-#     prod_fn = determine_production_function(crater_dist.a, crater_dist.b)
-#     eq_ages = equilibrium_age(diams, prod_fn.csfd, crater_dist.csfd)
+    # compute the equilibrium ages for each diameter
+    crater_dist = VIPER_Env_Spec(a=min_d, b=max_d)
+    prod_fn = determine_production_function(crater_dist.a, crater_dist.b)
+    eq_ages = equilibrium_age(diams, prod_fn.csfd, crater_dist.csfd)
 
-#     # plot
-#     plt.scatter(bins[:-1], diam_ages * 1e-9, label='Average Age per 1 m Bin')
-#     plt.scatter(diams, eq_ages * 1e-9, linestyle='dashed', color='gray', label='Equilibrium Age')
-#     plt.legend(loc="upper right")
-#     if args.plot:
-#         plt.show()
-#     else:
-#         plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
-#         plt.close()
+    # plot
+    plt.scatter(bins[:-1], diam_ages * 1e-9, label='Average Age per 1 m Bin')
+    plt.scatter(diams, eq_ages * 1e-9, linestyle='dashed', color='gray', label='Equilibrium Age')
+    plt.legend(loc="upper right")
+    if args.plot:
+        plt.show()
+    else:
+        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
+        plt.close()
 
 
 # plot slope histogram of surface vs that of haworth DEM
@@ -213,8 +214,8 @@ if __name__ == "__main__":
     last_step= str(int(args.age[1] * 1000))
 
     # crater ages and diameters over time to make sure these are trending correctly
-    # plot_diam_by_age('crater_list_'+first_step+'.csv', args)
-    # plot_diam_by_age('crater_list_0.csv', args)
+    plot_diam_by_age('crater_list_'+first_step+'.csv', args)
+    plot_diam_by_age('crater_list_'+last_step+'.csv', args)
 
     # plot the SFD for the first and last time steps
     plot_sfd('crater_list_'+first_step+'.csv', args) # first one with craters
@@ -240,9 +241,9 @@ if __name__ == "__main__":
     ax[0][1].set_title('First Surface')
     ax[0][2].set_title('Last Surface')
 
-    ax[1][0].imshow(abs(haworth_ft), cmap='gray')
-    ax[1][1].imshow(abs(first_ft), cmap='gray')
-    ax[1][2].imshow(abs(last_ft), cmap='gray')
+    ax[1][0].imshow(np.log(abs(haworth_ft)), cmap='gray')
+    ax[1][1].imshow(np.log(abs(first_ft)), cmap='gray')
+    ax[1][2].imshow(np.log(abs(last_ft)), cmap='gray')
 
     if args.plot:
         plt.show()
@@ -250,22 +251,29 @@ if __name__ == "__main__":
         plt.savefig(os.path.join(args.datapath, 'figs', 'hillshade_dems_ffts.png'), dpi=100, bbox_inches='tight')
         plt.close()
 
-    # # create gifs of maps
-    # out_files = os.listdir(args.datapath)
-    # plot_files = os.listdir(os.path.join(args.datapath, 'plots'))
-    # time_steps = [int(re.sub('\D', '', f)) for f in plot_files]
-    # # map_files = [f for f in out_files if f.find("maps") >= 0]
-    # # crater_files = [f for f in out_files if f.find("crater") >= 0]
-    
-    # plot_files_sort = [f for _, f in sorted(zip(time_steps, plot_files), reverse=True)]
-    # # crater_files_sort = [f for _, f in sorted(zip(time_steps, crater_files), reverse=True)]
-    # T = len(plot_files_sort)
 
-    # imgs = []
-    # for t in range(T):
-    #     print(t)
-    #     new_img = imageio.imread(os.path.join(args.datapath, 'plots', plot_files_sort[t]))
-    #     imgs.append(new_img)
+    # make gif of heightmaps (use hillshaded DEMs for this)
+    files = os.listdir(args.datapath)
+    map_files = [f for f in files if f.find('npz') > 0]
+    time_steps = [int(re.sub('\D', '', f)) for f in map_files]
+    print(time_steps)
+    map_files_sort = [f for _, f in sorted(zip(time_steps, map_files), reverse=True)]
+    T = len(map_files_sort)
+
+    imgs = []
+    for t in range(T):
+        print(t)
+
+        # make hillshaded version of image
+        maps = np.load(os.path.join(args.datapath, map_files_sort[t]))
+        surf = maps['surface']
+        plt.imshow(ls.hillshade())
+        plt.savefig(os.path.join(args.datapath, 'plots', map_files_sort[t].replace('.npz', '_hillshade.png')), bbox_inches='tight', dpi=100)
+        plt.close()
+
+        # load the new image and append to list
+        new_img = imageio.imread(os.path.join(args.datapath, 'plots', map_files_sort[t].replace('.npz', '_hillshade.png')))
+        imgs.append(new_img)
 
     # make gif of heightmaps
-    # imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), imgs, duration = 500, loop=0)
+    imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), imgs, duration = 500, loop=0)
