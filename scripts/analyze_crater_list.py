@@ -267,7 +267,7 @@ if __name__ == "__main__":
         # make hillshaded version of image
         maps = np.load(os.path.join(args.datapath, map_files_sort[t]))
         surf = maps['surface']
-        plt.imshow(ls.hillshade())
+        plt.imshow(ls.hillshade(surf), cmap='gray')
         plt.savefig(os.path.join(args.datapath, 'plots', map_files_sort[t].replace('.npz', '_hillshade.png')), bbox_inches='tight', dpi=100)
         plt.close()
 
