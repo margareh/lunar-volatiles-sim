@@ -1,6 +1,7 @@
 
 import numpy as np
 from numpy.polynomial import Polynomial
+from rasterio.transform import rowcol
 
 # crater profile copied from FTmod_Crater class in synthterrain
 # used here to create initial profiles when a crater is first added
@@ -58,3 +59,20 @@ def stopar_fresh_dd(diameter):
     for d, dd in zip(d_lower_bounds, dds):
         dd_list[diameter >= d] = dd
     return dd_list
+
+# Flag whether surface points are inside or outside of a crater
+def in_crater(x, y, diam, dim, res, tf):
+
+    # grid points for surface in meters
+    xx, yy = np.meshgrid(np.arange(0, dim*res, res), np.arange(0, dim*res, res))
+
+    # transform center of crater and grid points to row/column
+    r_center, c_center = rowcol(tf, x, y)
+    r_center /= res
+    c_center /= res
+
+    # compute whether or not each point is inside the crater
+    r2 = np.power((yy - r_center), 2) + np.power((xx - c_center), 2)
+    in_flag = (r2 <= np.power(diam / 2, 2))
+
+    return in_flag

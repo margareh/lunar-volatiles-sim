@@ -30,7 +30,7 @@ from synthterrain.crater import generate_diameters
 from synthterrain.crater.age import equilibrium_age
 
 from lvsim.utils import LvSimCfg
-from lvsim.crater import profile, stopar_fresh_dd
+from lvsim.crater import profile, stopar_fresh_dd, in_crater
 
 # some global defines
 # conversion from KM to AU (necessary for ephemeris data)
@@ -172,6 +172,7 @@ class LvSim():
         self.crater_df = pd.DataFrame(columns=['x','y','diameter','age','d/D','surface','new'])
         self.init_surface = np.zeros((math.ceil(self.window.height), math.ceil(self.window.width)))
         self.create_surface()
+        self.surface_age = np.zeros_like(self.surface)
         self.size = self.surface.shape[0]
 
         # save production function information
@@ -234,6 +235,7 @@ class LvSim():
 
             # terrain changes (diffusion, production of new craters, removal of old craters)
             self.evolve_terrain()
+            self.update_surface_age()
 
             # compute illumination
             self.calc_horizons()
@@ -370,6 +372,22 @@ class LvSim():
         # Update stored surface with craters in the dataset
         self.create_surface()
 
+    # Compute age based on last crater
+    def update_surface_age(self):
+        
+        # get flags for whether points are inside a crater for all rows of dataframe
+        flag = self.crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], self.surface.shape[0], self.cfg.args.res, self.transform), axis=1)
+        flags_np = np.transpose(np.array(flag.tolist()), (1, 2, 0))
+        ages_np = flags_np * self.crater_df.age.values
+        ages_np[~flags_np] = np.nan
+
+        # compute ages based on last crater to hit that spot
+        # or add in the time delta for this time step
+        crater_cond = np.max(flags_np, axis=-1)
+        self.surface_age[crater_cond] = np.nanmin(ages_np[crater_cond,:], axis=-1)
+        self.surface_age[~crater_cond] += self.cfg.args.time_delta
+
+
     # Compute horizons for a given terrain map
     def calc_horizons(self):
 
@@ -428,7 +446,7 @@ class LvSim():
         )
 
         # save surface and illumination
-        np.savez_compressed(os.path.join(self.cfg.args.outpath, 'maps_'+ts+'.npz'), surface=self.surface, illumin_frac=self.illumin_frac, psr=self.psr)
+        np.savez_compressed(os.path.join(self.cfg.args.outpath, 'maps_'+ts+'.npz'), surface=self.surface, illumin_frac=self.illumin_frac, psr=self.psr, age=self.surface_age)
 
         # plots
         fig, ax = plt.subplots(2,3)
