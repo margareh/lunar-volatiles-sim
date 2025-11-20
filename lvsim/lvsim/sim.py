@@ -32,6 +32,9 @@ from synthterrain.crater.age import equilibrium_age
 from lvsim.utils import LvSimCfg
 from lvsim.crater import profile, stopar_fresh_dd, in_crater
 
+from moonpies import MoonPIES
+from moonpies import config as mp_config
+
 # some global defines
 # conversion from KM to AU (necessary for ephemeris data)
 KM_AU = 149597870.700
@@ -209,6 +212,24 @@ class LvSim():
         # save the list of craters, current surface, and illumination model
         self.save()
 
+        # config for moonpies
+        mp_cfg = mp_config.read_custom_cfg(self.cfg.args.mp_cfg, self.cfg.args.seed + 1)
+
+        # initialize moonpies sim
+        self.mp_sim = MoonPIES(mp_cfg)
+
+
+    # update the moonpies config
+    # needs to be done each iteration to point to the new crater list, among other things
+    def update_mp_cfg(self):
+        new_cfg = copy.copy(self.mp_sim_cfg)
+        new_cfg.crater_csv_in = ''
+        new_cfg.psr_spat = ''
+        new_cfg.timestart = 3.8e9 # yr
+        new_cfg.timeend = 0
+        new_cfg.seed = self.cfg.args.seed + 1
+        self.mp_sim.cfg = new_cfg
+
 
     # Use illumination maps and moonpies to generate ice distribution
     def gen_ice_dist(self, time):
@@ -242,6 +263,8 @@ class LvSim():
             self.illuminate()
 
             # ice delivery
+            self.update_mp_cfg()
+
 
             # ice movement
 

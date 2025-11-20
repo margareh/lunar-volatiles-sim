@@ -111,6 +111,12 @@ class LvSimCfg():
                             default=12957973,
                             help='Random seed')
         
+        # args for moonpies
+        parser.add_argument('--mp_cfg',
+                            type=str,
+                            default='../../moonpies/moonpies/configs/lvsim_config.py',
+                            help='Config file to use for moonpies')
+        
         # parse args at the end and save
         # this also adds any additional arguments that were added
         args_to_parse = copy.copy(sys.argv[1:])
