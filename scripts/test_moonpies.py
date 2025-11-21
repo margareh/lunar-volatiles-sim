@@ -10,17 +10,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from shapely.geometry import box
-from rasterio.transform import from_origin
+from rasterio.transform import from_origin, rowcol
 
 from lvsim.crater import in_crater
 
 from moonpies import MoonPIES
 from moonpies import config as mp_config
 
-def get_psr_area(in_crater_flag, rad, psr, px_area = 1):
-    crater_area = np.pi * (rad **2)
-    psr_area = np.sum(in_crater_flag * psr) * px_area / crater_area
-    return psr_area
 
 # update crater and psr mask data
 def update_data(crater_file, psr_file, end_age, args):
@@ -42,9 +38,10 @@ def update_data(crater_file, psr_file, end_age, args):
     # add columns to crater dataframe as needed for moonpies
     crater_df['cname'] = crater_df.index
     crater_df['age_upp'] = crater_df['age_low'] = crater_df['age']
-    crater_df["rad"] = crater_df["diam"] / 2
+    crater_df["rad"] = crater_df["diameter"] / 2
     crater_df['in_crater'] = crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], args.dim, args.res, tf), axis=1)
-    crater_df['psr_area'] = crater_df.apply(lambda row: get_psr_area(row["in_crater"], row["rad"], psr, px_area=args.res**2), axis=1)
+    crater_df['psr_flag'] = crater_df.apply(lambda row: row['in_crater'] * psr, axis=1)
+    crater_df['psr_area'] = crater_df.apply(lambda row: np.sum(row['psr_flag']) * (args.res**2), axis=1)
 
     return crater_df, psr
 
@@ -61,7 +58,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # make output directory
-    if ~os.path.exists(os.path.join(args.datapath, 'moonpies')):
+    if os.path.exists(os.path.join(args.datapath, 'moonpies')) == False:
         os.mkdir(os.path.join(args.datapath, 'moonpies'))
 
     # get ages from files
@@ -75,6 +72,32 @@ if __name__ == "__main__":
     map_files_sort = [f for _, f in sorted(zip(time_steps, map_files), reverse=True)]
     crater_files_sort = [f for _, f in sorted(zip(time_steps_c, crater_files), reverse=True)]
     time_steps.sort(reverse=True)
+
+    # # load first file and show psrs within craters to make sure that's working properly
+    # crater_df, psr_mask, surface = update_data(crater_files_sort[1], map_files_sort[1], time_steps[1] * 1e6, args)
+
+    # for i in range(len(crater_df)):
+    #     if crater_df.diameter.values[i] < 10:
+    #         continue
+    #     crater_flag = np.array(crater_df.in_crater.values[i])
+    #     psr_flag = np.array(crater_df.psr_flag.values[i])
+    #     # print(crater_flag.shape)
+    #     # print(psr_flag.shape)
+    #     psr_area = crater_df.psr_area.values[i]
+    #     crater_area1 = np.sum(crater_flag) * (args.res**2)
+    #     crater_area2 = np.pi * (crater_df.rad.values[i]**2)
+    #     print(psr_area)
+    #     print(crater_area1)
+    #     print(crater_area2)
+    #     print(np.abs(crater_area1 - crater_area2))
+    #     print(psr_area / crater_area1)
+
+    #     fig, ax = plt.subplots(1,3,figsize=(30,10))
+    #     ax[0].imshow(surface)
+    #     ax[1].imshow(psr_mask)
+    #     ax[2].imshow(crater_flag, cmap='Greys', alpha=0.8)
+    #     ax[2].imshow(psr_flag, cmap='Purples', alpha=0.5)
+    #     plt.show()
 
     # loop through iterations
     init=False
