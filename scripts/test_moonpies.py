@@ -14,7 +14,7 @@ from rasterio.transform import from_origin
 
 from lvsim.crater import in_crater
 
-from moonpies import MoonPIES
+from moonpies.moonpies import MoonPIES
 from moonpies import config as mp_config
 
 
