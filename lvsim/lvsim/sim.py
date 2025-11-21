@@ -213,31 +213,38 @@ class LvSim():
         self.save()
 
         # config for moonpies
-        mp_cfg = mp_config.read_custom_cfg(self.cfg.args.mp_cfg, self.cfg.args.seed + 1)
+        mp_cfg = mp_config.read_custom_cfg(self.cfg.args.mp_cfg, self.cfg.args.seed + 1000)
+        mp_cfg.grdxsize = self.cfg.args.bbox[1]
+        mp_cfg.grdysize = self.cfg.args.bbox[2]
+        mp_cfg.grdstep = self.cfg.args.res
+        mp_cfg.out_path = os.path.join(self.cfg.args.datapath, 'moonpies')
+
+        if os.path.exists(os.path.join(self.cfg.args.datapath, 'moonpies')) == False:
+            os.mkdir(os.path.join(self.cfg.args.datapath, 'moonpies'))
 
         # initialize moonpies sim
-        self.mp_sim = MoonPIES(mp_cfg)
+        self.mp_sim = MoonPIES(mp_cfg, crater_db=self.get_mp_info(), psr_mask=self.psr)
 
 
-    # update the moonpies config
-    # needs to be done each iteration to point to the new crater list, among other things
-    def update_mp_cfg(self):
-        new_cfg = copy.copy(self.mp_sim_cfg)
-        new_cfg.crater_csv_in = ''
-        new_cfg.psr_spat = ''
-        new_cfg.timestart = 3.8e9 # yr
-        new_cfg.timeend = 0
-        new_cfg.seed = self.cfg.args.seed + 1
-        self.mp_sim.cfg = new_cfg
+    # return the crater df and psr mask for moonpies
+    def get_mp_info(self, end_age):
+        
+        # only send new craters (formed between current and last time step) to moonpies
+        # psrs will be all formed so far
+        crater_df = self.crater_df[self.crater_df["new"]]
+        
+        # increase crater age based on length of sim
+        crater_df['age'] += end_age
 
-
-    # Use illumination maps and moonpies to generate ice distribution
-    def gen_ice_dist(self, time):
-        pass
-
-    # Produce sensor observations for a specific location
-    def gen_sensor_obs(self, time):
-        pass
+        # add columns to crater dataframe as needed for moonpies
+        crater_df['cname'] = crater_df.index
+        crater_df['age_upp'] = crater_df['age_low'] = crater_df['age']
+        crater_df["rad"] = crater_df["diameter"] / 2
+        crater_df['in_crater'] = crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], self.cfg.args.dim, self.cfg.args.res, self.transform), axis=1)
+        # crater_df['psr_flag'] = crater_df.apply(lambda row: row['in_crater'] * self.psr, axis=1)
+        crater_df['psr_area'] = crater_df.apply(lambda row: np.sum(row['in_crater'] * self.psr) * (self.cfg.args.res**2), axis=1)
+        
+        return crater_df
 
 
     # Run through all steps
@@ -262,16 +269,17 @@ class LvSim():
             self.calc_horizons()
             self.illuminate()
 
-            # ice delivery
-            self.update_mp_cfg()
+            # TODO: calc psrs based on thermal model instead of illumination
 
-
-            # ice movement
-
-            # ice removal
-
-            # save the results
+            # save the results from terrain changes
             self.save()
+
+            # ice distribution
+            # moonpies separately saves its results
+            self.mp_sim.cfg.timestart = (self.t+self.cfg.args.time_delta) * 1e9 # yr
+            self.mp_sim.cfg.timeend = self.t * 1e9
+            self.mp_sim.update_crater_info(crater_db=self.get_mp_info(end_age=self.t*1e9), psr_mask=self.psr)
+            self.mp_sim.run()
 
         end_all = time.time()
         print("Overall runtime (minutes): %4.4f" % ((end_all - start_all) / 60))

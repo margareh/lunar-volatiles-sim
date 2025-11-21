@@ -10,7 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from shapely.geometry import box
-from rasterio.transform import from_origin, rowcol
+from rasterio.transform import from_origin
 
 from lvsim.crater import in_crater
 
@@ -31,6 +31,9 @@ def update_data(crater_file, psr_file, end_age, args):
     # transform for crater
     poly = box(args.bbox[0], args.bbox[3], args.bbox[2], args.bbox[1])
     tf = from_origin(poly.bounds[0], poly.bounds[3], args.res, args.res)
+
+    # filter to new craters only
+    crater_df = crater_df[crater_df["new"]]
 
     # increase crater age based on length of sim
     crater_df['age'] += end_age
@@ -103,6 +106,8 @@ if __name__ == "__main__":
     init=False
     for i in range(1, len(time_steps)):
 
+        print(time_steps[i])
+
         # load data
         crater_df, psr_mask = update_data(crater_files_sort[i], map_files_sort[i], time_steps[i] * 1e6, args)
 
@@ -115,13 +120,12 @@ if __name__ == "__main__":
             mp_cfg.out_path = os.path.join(args.datapath, 'moonpies')
             mp_sim = MoonPIES(mp_cfg, crater_db=crater_df, psr_mask=psr_mask)
             init=True
+        else:
+            mp_sim.update_crater_info(crater_db=crater_df, psr_mask=psr_mask)
 
         # update time start and end in moonpies config
-        mp_sim.cfg.timestart = time_steps[i-1]
-        mp_sim.cfg.timeend = time_steps[i]
-
-        # update data in moonpies
-        mp_sim.update_crater_info(crater_db=crater_df, psr_mask=psr_mask)
+        mp_sim.cfg.timestart = time_steps[i-1] * 1e6
+        mp_sim.cfg.timeend = time_steps[i] * 1e6
 
         # run new moonpies iters
         mp_sim.run()
