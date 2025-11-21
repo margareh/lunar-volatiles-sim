@@ -19,7 +19,7 @@ from moonpies import config as mp_config
 
 
 # update crater and psr mask data
-def update_data(crater_file, psr_file, end_age, args):
+def update_data(crater_file, psr_file, start_age, end_age, args):
 
     # load crater dataset and psr mask
     crater_df = pd.read_csv(os.path.join(args.datapath, crater_file), header=0, index_col=0)
@@ -33,7 +33,8 @@ def update_data(crater_file, psr_file, end_age, args):
     tf = from_origin(poly.bounds[0], poly.bounds[3], args.res, args.res)
 
     # filter to new craters only
-    crater_df = crater_df[crater_df["new"]]
+    age_diff = (start_age - end_age)
+    crater_df = crater_df[crater_df["age"] <= age_diff]
 
     # increase crater age based on length of sim
     crater_df['age'] += end_age
@@ -109,7 +110,7 @@ if __name__ == "__main__":
         print(time_steps[i])
 
         # load data
-        crater_df, psr_mask = update_data(crater_files_sort[i], map_files_sort[i], time_steps[i] * 1e6, args)
+        crater_df, psr_mask = update_data(crater_files_sort[i], map_files_sort[i], time_steps[i-1] * 1e6, time_steps[i] * 1e6, args)
 
         if ~init:
             # initialize moonpies sim
