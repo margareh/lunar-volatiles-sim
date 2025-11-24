@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
         if ~init:
             # initialize moonpies sim
-            mp_cfg = mp_config.read_custom_cfg('../../moonpies/moonpies/configs/lvsim_config.py', 9324712)
+            mp_cfg = mp_config.read_custom_cfg('../moonpies/moonpies/configs/lvsim_config.py', 9324712)
             mp_cfg.grdxsize = args.dim
             mp_cfg.grdysize = args.dim
             mp_cfg.grdstep = args.res
