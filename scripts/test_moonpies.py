@@ -104,7 +104,6 @@ if __name__ == "__main__":
     #     plt.show()
 
     # loop through iterations
-    init=False
     for i in range(1, len(time_steps)):
 
         print(time_steps[i])
@@ -112,15 +111,13 @@ if __name__ == "__main__":
         # load data
         crater_df, psr_mask = update_data(crater_files_sort[i], map_files_sort[i], time_steps[i-1] * 1e6, time_steps[i] * 1e6, args)
 
-        if ~init:
-            # initialize moonpies sim
+        if i == 1:
             mp_cfg = mp_config.read_custom_cfg('../moonpies/moonpies/configs/lvsim_config.py',
                                                seed=9324712,
                                                gridsize=args.dim,
                                                gridres=args.res,
                                                outpath=os.path.join(args.datapath, 'moonpies'))
             mp_sim = MoonPIES(mp_cfg, crater_db=crater_df, psr_mask=psr_mask)
-            init=True
         else:
             mp_sim.update_crater_info(crater_db=crater_df, psr_mask=psr_mask)
 
