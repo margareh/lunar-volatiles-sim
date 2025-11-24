@@ -114,11 +114,11 @@ if __name__ == "__main__":
 
         if ~init:
             # initialize moonpies sim
-            mp_cfg = mp_config.read_custom_cfg('../moonpies/moonpies/configs/lvsim_config.py', 9324712)
-            mp_cfg.grdxsize = args.dim
-            mp_cfg.grdysize = args.dim
-            mp_cfg.grdstep = args.res
-            mp_cfg.out_path = os.path.join(args.datapath, 'moonpies')
+            mp_cfg = mp_config.read_custom_cfg('../moonpies/moonpies/configs/lvsim_config.py',
+                                               seed=9324712,
+                                               gridsize=args.dim,
+                                               gridres=args.res,
+                                               outpath=os.path.join(args.datapath, 'moonpies'))
             mp_sim = MoonPIES(mp_cfg, crater_db=crater_df, psr_mask=psr_mask)
             init=True
         else:
