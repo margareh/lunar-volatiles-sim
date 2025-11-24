@@ -125,11 +125,11 @@ if __name__ == "__main__":
             mp_sim.update_crater_info(crater_db=crater_df, psr_mask=psr_mask)
 
         # update time start and end in moonpies config
-        mp_sim.cfg.timestart = time_steps[i-1] * 1e6
-        mp_sim.cfg.timeend = time_steps[i] * 1e6
+        start_time = time_steps[i-1] * 1e6
+        end_time = time_steps[i] * 1e6
 
         # run new moonpies iters
-        mp_sim.run()
+        mp_sim.run_between(start_time, end_time)
 
         # plot the results
         mp_sim.show()
