@@ -235,7 +235,8 @@ class LvSim():
 
             # terrain changes (diffusion, production of new craters, removal of old craters)
             self.evolve_terrain()
-            self.update_surface_age()
+            if self.cfg.args.d_to_D_threshold > 0:
+                self.update_surface_age()
 
             # compute illumination
             self.calc_horizons()
