@@ -148,23 +148,24 @@ def make_heightmap(df, init_surface, tf):
 
     return new_surf
 
-# version of in_crater that takes a single list of args for use with multiprocessing pool
-def in_crater_p(args):
+# crater ages distributed across surface
+def crater_age(args):
     x = args[0]
     y = args[1]
     diam = args[2]
-    dim = args[3]
-    res = args[4]
-    transform = args[5]
-    return in_crater(x, y, diam, dim, res, transform)
+    age = args[3]
+    dim = args[4]
+    res = args[5]
+    transform = args[6]
+    return in_crater(x, y, diam, dim, res, transform) * age
 
 
 # Make an array containing flags for whether or not surface points are in a crater
 def make_crater_flags(crater_df, dim, res, transform):
     with Pool() as p:
-        args = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diameter.values[i], dim, res, transform) for i in range(len(crater_df))]
-        out = p.map(in_crater_p, args)
-    return np.transpose(out, (1,2,0)) * crater_df.ages.values
+        args = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diameter.values[i], crater_df.age.values[i], dim, res, transform) for i in range(len(crater_df))]
+        out = p.map(crater_age, args)
+    return out
 
 
 # class for lunar volatiles sim
@@ -405,10 +406,12 @@ class LvSim():
 
         # compute ages based on last crater to hit that spot
         # or add in the time delta for this time step
-        crater_cond = np.max(ages, axis=-1) > 0
-        ages[ages < 0] = np.nan
-        self.surface_age[crater_cond] = np.nanmin(ages[crater_cond,:], axis=-1)
+        print("HERE")
+        crater_cond = (np.max(ages, axis=0) > 0)
+        ages[ages <= 0] = np.nan
+        self.surface_age[crater_cond] = np.nanmin(ages[crater_cond,:], axis=0)
         self.surface_age[~crater_cond] += self.cfg.args.time_delta
+        print("HERE 2")
 
 
     # Compute horizons for a given terrain map
