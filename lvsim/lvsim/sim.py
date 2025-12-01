@@ -162,9 +162,9 @@ def in_crater_p(args):
 # Make an array containing flags for whether or not surface points are in a crater
 def make_crater_flags(crater_df, dim, res, transform):
     with Pool() as p:
-        args = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diam.values[i], dim, res, transform) for i in range(len(crater_df))]
+        args = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diameter.values[i], dim, res, transform) for i in range(len(crater_df))]
         out = p.map(in_crater_p, args)
-    return out
+    return np.transpose(out, (1,2,0)) * crater_df.ages.values
 
 
 # class for lunar volatiles sim
@@ -395,17 +395,19 @@ class LvSim():
         
         # get flags for whether points are inside a crater for all rows of dataframe
         # flag = self.crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], self.surface.shape[0], self.cfg.args.res, self.transform), axis=1)
-        flag = make_crater_flags(self.crater_df, self.surface.shape[0], self.cfg.args.res, self.transform)
-        print(np.array(flag).shape)
-        flags_np = np.transpose(np.array(flag), (1, 2, 0))
-        print(flags_np.shape)
-        ages_np = flags_np * self.crater_df.age.values
-        ages_np[~flags_np] = np.nan
+        ages = make_crater_flags(self.crater_df, self.surface.shape[0], self.cfg.args.res, self.transform)
+        # ages = np.transpose(np.array(ages, (1,2,0)))
+        # print(np.array(flag).shape)
+        # flags_np = np.transpose(np.array(flag), (1, 2, 0))
+        # print(flags_np.shape)
+        # ages_np = flags_np * self.crater_df.age.values
+        # ages_np[~flags_np] = np.nan
 
         # compute ages based on last crater to hit that spot
         # or add in the time delta for this time step
-        crater_cond = np.max(flags_np, axis=-1)
-        self.surface_age[crater_cond] = np.nanmin(ages_np[crater_cond,:], axis=-1)
+        crater_cond = np.max(ages, axis=-1) > 0
+        ages[ages < 0] = np.nan
+        self.surface_age[crater_cond] = np.nanmin(ages[crater_cond,:], axis=-1)
         self.surface_age[~crater_cond] += self.cfg.args.time_delta
 
 
