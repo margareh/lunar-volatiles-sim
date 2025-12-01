@@ -32,12 +32,17 @@ def update_data(crater_file, psr_file, start_age, end_age, args):
     poly = box(args.bbox[0], args.bbox[3], args.bbox[2], args.bbox[1])
     tf = from_origin(poly.bounds[0], poly.bounds[3], args.res, args.res)
 
-    # filter to new craters only
-    print("Before filtering to new craters only: %d" % (len(crater_df)))
-    # print(len(crater_df))
+    # # filter to new craters only
+    # print("Before filtering to new craters only: %d" % (len(crater_df)))
+    # # print(len(crater_df))
     age_diff = (start_age - end_age)
-    crater_df = crater_df[crater_df["age"] <= age_diff]
-    print("After filtering to new craters only: %d" % (len(crater_df)))
+    crater_df["new"] = False
+    crater_df[crater_df["age"] <= age_diff].new = True
+    # crater_df = crater_df[crater_df["age"] <= age_diff]
+    # print("After filtering to new craters only: %d" % (len(crater_df)))
+
+    # Get crater profile
+    crater_df["profile"] = 
 
     # increase crater age based on length of sim
     crater_df['age'] += end_age
@@ -128,6 +133,19 @@ if __name__ == "__main__":
         crater_df, psr_mask = update_data(crater_files_sort[i], map_files_sort[i], start_time, end_time, args)
         # print(crater_df[0:10])
 
+        # use crater profile to update ejecta profile for previous time steps
+        if len(df_craters) > 0:
+            prev_profile = df_craters[["index", "profile"]]
+        old_craters = df_craters[df_craters["new"] == False]
+        if len(old_craters) > 0 and len(prev_profile) > 0:
+            for _, row in old_craters.iterrows():
+                ts = row["age"]
+                ts_ind = ts % self.cfg.timestep
+                profile_diff = row["profile"] - prev_profile.iloc[row.index, "profile"]
+                new_ej += profile_diff
+                r = 
+                new_ice *= (1+r)
+
         # print out the range of crater ages to check that they're correct
         print("Age range (Myr): (%4.4f, %4.4f) " % (np.min(crater_df.age.values) / 1e6, np.max(crater_df.age.values) / 1e6))
         # print(np.min(crater_df.age.values) / 1e6)
@@ -150,7 +168,7 @@ if __name__ == "__main__":
                                                outpath=os.path.join(args.datapath, 'moonpies'))
             mp_sim = MoonPIES(mp_cfg, crater_db=crater_df, psr_mask=psr_mask)
         else:
-            mp_sim.update_crater_info(crater_db=crater_df, psr_mask=psr_mask)
+            mp_sim.update_crater_info(crater_db=crater_df, psr_mask=psr_mask, new_ej=new_ej, new_ice=new_ice)
 
         # run new moonpies iters
         mp_sim.run_between(start_time, end_time)
