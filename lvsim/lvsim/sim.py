@@ -148,6 +148,24 @@ def make_heightmap(df, init_surface, tf):
 
     return new_surf
 
+# version of in_crater that takes a single list of args for use with multiprocessing pool
+def in_crater_p(args):
+    x = args[0]
+    y = args[1]
+    diam = args[2]
+    dim = args[3]
+    res = args[4]
+    transform = args[5]
+    return in_crater(x, y, diam, dim, res, transform)
+
+
+# Make an array containing flags for whether or not surface points are in a crater
+def make_crater_flags(crater_df, dim, res, transform):
+    with Pool() as p:
+        args = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diam.values[i], dim, res, transform) for i in range(len(crater_df))]
+        out = p.map(in_crater_p, args)
+    return out
+
 
 # class for lunar volatiles sim
 class LvSim():
@@ -376,8 +394,11 @@ class LvSim():
     def update_surface_age(self):
         
         # get flags for whether points are inside a crater for all rows of dataframe
-        flag = self.crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], self.surface.shape[0], self.cfg.args.res, self.transform), axis=1)
-        flags_np = np.transpose(np.array(flag.tolist()), (1, 2, 0))
+        # flag = self.crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], self.surface.shape[0], self.cfg.args.res, self.transform), axis=1)
+        flag = make_crater_flags(self.crater_df, self.surface.shape[0], self.cfg.args.res, self.transform)
+        print(np.array(flag).shape)
+        flags_np = np.transpose(np.array(flag), (1, 2, 0))
+        print(flags_np.shape)
         ages_np = flags_np * self.crater_df.age.values
         ages_np[~flags_np] = np.nan
 
