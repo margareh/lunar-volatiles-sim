@@ -24,6 +24,8 @@ if __name__ == "__main__":
     num_dirs = [int(f) for f in dirs]
     dirs_sort = [f for _,f in sorted(zip(num_dirs, dirs), reverse=True)]
     print(dirs_sort)
+    num_dirs.sort(reverse=True)
+    print(num_dirs)
 
     # make directory for storing the intermediate images
     img_path = os.path.join(args.datapath, 'figs')
