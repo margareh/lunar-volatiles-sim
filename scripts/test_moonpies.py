@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--datapath', type=str, help='Path to dataset to use for running moonpies')
     parser.add_argument('--dim', type=int, default=200, help='Dimensions of map')
-    parser.add_argument('--bbox', type=float, default=[0, 200, 200, 0], help='Bounding box in meters for map')
+    parser.add_argument('--bbox', type=float, nargs=4, default=[0, 200, 200, 0], help='Bounding box in meters for map')
     parser.add_argument('--res', type=float, default=1., help='Resolution of map in meters per pixel')
     args = parser.parse_args()
 
