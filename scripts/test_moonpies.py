@@ -18,6 +18,20 @@ from lvsim.crater import in_crater
 from moonpies.moonpies import MoonPIES
 from moonpies import config as mp_config
 
+# functions for multiprocessing
+# calculate crater flags
+def in_crater_mp(args):
+    x = args[0]
+    y = args[1]
+    diam = args[2]
+    dim = args[3]
+    res = args[4]
+    tf = args[5]
+    return in_crater(x, y, diam, dim, res, tf)
+
+# calculate psr area
+def psr_area_mp(args):
+    return np.sum(args[0] * args[1]) * (args[2]**2)
 
 # update crater and psr mask data
 def update_data(crater_file, psr_file, start_age, end_age, args):
@@ -49,20 +63,16 @@ def update_data(crater_file, psr_file, start_age, end_age, args):
     crater_df["rad"] = crater_df["diameter"] / 2
 
     with Pool() as p:
-        args = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diameter.values[i], args.dim, args.res, tf) for i in len(crater_df)]
-        in_crater_row = p.map(in_crater, args)
+        args_mp = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diameter.values[i], args.dim, args.res, tf) for i in range(len(crater_df))]
+        in_crater_row = p.map(in_crater_mp, args_mp)
 
     crater_df['in_crater'] = in_crater_row
 
     with Pool() as p:
-        args = [(crater_df.in_crater.values[i], psr, args.res) for i in len(crater_df)]
-        psr_area = p.map(lambda args: np.sum(args[0] * args[1]) * (args[2]**2))
+        args_mp = [(crater_df.in_crater.values[i], psr, args.res) for i in range(len(crater_df))]
+        psr_area = p.map(psr_area_mp, args_mp)
 
     crater_df['psr_area'] = psr_area
-
-    # crater_df['in_crater'] = crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], args.dim, args.res, tf), axis=1)
-    # crater_df['psr_flag'] = crater_df.apply(lambda row: row['in_crater'] * psr, axis=1)
-    # crater_df['psr_area'] = crater_df.apply(lambda row: np.sum(row['psr_flag']) * (args.res**2), axis=1)
 
     return crater_df, psr
 
