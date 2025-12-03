@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from multiprocessing import Pool
 from shapely.geometry import box
 from rasterio.transform import from_origin
 
@@ -46,9 +47,22 @@ def update_data(crater_file, psr_file, start_age, end_age, args):
     crater_df['cname'] = crater_df.index
     crater_df['age_upp'] = crater_df['age_low'] = crater_df['age']
     crater_df["rad"] = crater_df["diameter"] / 2
-    crater_df['in_crater'] = crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], args.dim, args.res, tf), axis=1)
-    crater_df['psr_flag'] = crater_df.apply(lambda row: row['in_crater'] * psr, axis=1)
-    crater_df['psr_area'] = crater_df.apply(lambda row: np.sum(row['psr_flag']) * (args.res**2), axis=1)
+
+    with Pool() as p:
+        args = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diameter.values[i], args.dim, args.res, tf) for i in len(crater_df)]
+        in_crater_row = p.map(in_crater, args)
+
+    crater_df['in_crater'] = in_crater_row
+
+    with Pool() as p:
+        args = [(crater_df.in_crater.values[i], psr, args.res) for i in len(crater_df)]
+        psr_area = p.map(lambda args: np.sum(args[0] * args[1]) * (args[2]**2))
+
+    crater_df['psr_area'] = psr_area
+
+    # crater_df['in_crater'] = crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], args.dim, args.res, tf), axis=1)
+    # crater_df['psr_flag'] = crater_df.apply(lambda row: row['in_crater'] * psr, axis=1)
+    # crater_df['psr_area'] = crater_df.apply(lambda row: np.sum(row['psr_flag']) * (args.res**2), axis=1)
 
     return crater_df, psr
 
