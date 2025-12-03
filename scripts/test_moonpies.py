@@ -133,7 +133,6 @@ if __name__ == "__main__":
 
     # loop through iterations
     for i in range(1, len(time_steps)):
-    # for i in range(1, 3):
 
         print("Current time step (Myr): %4.4f" % (time_steps[i]))
 
@@ -144,27 +143,12 @@ if __name__ == "__main__":
             start_time = (time_steps[i] + 100) * 1e6
         else:
             start_time = time_steps[i-1] * 1e6
-        # print(start_time)
 
         end_time = time_steps[i] * 1e6
-        # print(crater_file)
-        # print(map_file)
         crater_df, psr_mask = update_data(crater_files_sort[i], map_files_sort[i], start_time, end_time, args)
-        # print(crater_df[0:10])
 
         # print out the range of crater ages to check that they're correct
         print("Age range (Myr): (%4.4f, %4.4f) " % (np.min(crater_df.age.values) / 1e6, np.max(crater_df.age.values) / 1e6))
-        # print(np.min(crater_df.age.values) / 1e6)
-        # print(np.max(crater_df.age.values) / 1e6)
-
-        # in_crater_np = np.array(crater_df.in_crater.tolist())
-        # in_psr_np = np.array(crater_df.psr_flag.tolist())
-        # print(in_crater_np.shape) # 214 x 200 x 200
-        # plot the craters and psrs
-        # fig, ax = plt.subplots(1,2,figsize=(20,10))
-        # ax[0].imshow(np.any(in_crater_np, axis=0), cmap='Oranges')
-        # ax[1].imshow(np.any(in_psr_np, axis=0), cmap='Blues')
-        # plt.show()
 
         if i == 1:
             mp_cfg = mp_config.read_custom_cfg('../moonpies/moonpies/configs/lvsim_config.py',
