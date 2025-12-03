@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     # now make args list
     args = [(x,y) for x in grdx for y in grdy]
-    print(args)
+    print(len(args))
 
     # now run through multiprocessing and reshape
     with Pool() as p:
@@ -38,11 +38,11 @@ if __name__ == "__main__":
     print(grdx * np.ones((m,1)) * grdy * np.ones((1,n)))
 
     # plot things
-    fig, ax = plt.subplots(1,3, figsize=(30,10))
-    ax[0].imshow(grdx * np.ones((m, 1)))
-    ax[1].imshow(grdy * np.ones((1, n)))
-    ax[2].imshow(out)
-    ax[0].set_title('X')
-    ax[1].set_title('Y')
-    ax[2].set_title('OUT')
-    plt.show()
+    #fig, ax = plt.subplots(1,3, figsize=(30,10))
+    #ax[0].imshow(grdx * np.ones((m, 1)))
+    #ax[1].imshow(grdy * np.ones((1, n)))
+    #ax[2].imshow(out)
+    #ax[0].set_title('X')
+    #ax[1].set_title('Y')
+    #ax[2].set_title('OUT')
+    #plt.show()
