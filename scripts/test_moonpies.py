@@ -48,11 +48,12 @@ def update_data(crater_file, psr_file, start_age, end_age, args):
     tf = from_origin(poly.bounds[0], poly.bounds[3], args.res, args.res)
 
     # filter to new craters only
-    print("Before filtering to new craters only: %d" % (len(crater_df)))
+    print("Number of craters: %d" % (len(crater_df)))
+    #print("Before filtering to new craters only: %d" % (len(crater_df)))
     # print(len(crater_df))
-    age_diff = (start_age - end_age)
-    crater_df = crater_df[crater_df["age"] <= age_diff]
-    print("After filtering to new craters only: %d" % (len(crater_df)))
+    #age_diff = (start_age - end_age)
+    #crater_df = crater_df[crater_df["age"] <= age_diff]
+    #print("After filtering to new craters only: %d" % (len(crater_df)))
 
     # increase crater age based on length of sim
     crater_df['age'] += end_age
