@@ -132,6 +132,7 @@ def display_nss(ice_depth, ice_wt_pct, obs1_map, obs2_map, datapath):
 
     #plt.show()
     plt.savefig(os.path.join(datapath, 'figs', 'nss_obs.png'), dpi=100, bbox_inches='tight')
+    plt.close()
 
 # helper function for computing wt % from ice fraction
 def get_wt_pct(ice_frac, ice_col_grid, args):
@@ -174,5 +175,17 @@ if __name__ == "__main__":
     # display final nss observations
     data = np.load(os.path.join(args.datapath, 'maps_'+last_step+'.npz'))
     mp_data = np.load(os.path.join(args.mppath, last_step, 'data.npz'))
-    ice_wt_pct = get_wt_pct(mp_data['ice_frac'], mp_data['ice_col_grid'])
+    ice_wt_pct = get_wt_pct(mp_data['ice_frac'], mp_data['ice_col_grid'], args)
     display_nss(mp_data['ice_depth'], ice_wt_pct, data['det1'], data['det2'], args.datapath)
+
+    # psr mask
+    plt.imshow(data['psr'], cmap='binary')
+    plt.savefig(os.path.join(args.datapath, 'figs', 'final_psr_mask.png'), bbox_inches='tight', dpi=100)
+    plt.close()
+
+    # surface age
+    im = plt.imshow(data['age'] * 1e-6, cmap='plasma')
+    plt.colorbar(im)
+    plt.savefig(os.path.join(args.datapath, 'figs', 'final_surface_age_myr.png'), bbox_inches='tight', dpi=100)
+    plt.close()
+
