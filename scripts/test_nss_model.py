@@ -50,10 +50,10 @@ if __name__ == "__main__":
     # display NSS observations
     fig, ax = plt.subplots(2,2,figsize=(20,20))
 
-    im00 = ax[0,0].imshow(ice_depth, cmap='Blues')
-    im01 = ax[0,1].imshow(ice_wt_pct, cmap='Oranges')
-    im10 = ax[1,0].imshow(obs1_map, cmap='PuRd_r')
-    im11 = ax[1,1].imshow(obs2_map, cmap='BuGn_r')
+    im00 = ax[0,0].imshow(ice_depth, cmap='bone_r', vmin=0, vmax=2)
+    im01 = ax[0,1].imshow(ice_wt_pct, cmap='Oranges', vmin=0, vmax=1)
+    im10 = ax[1,0].imshow(obs1_map, cmap='PuRd_r', vmin=0, vmax=24)
+    im11 = ax[1,1].imshow(obs2_map, cmap='BuGn_r', vmin=6, vmax=50)
 
     ax[0,0].set_title('Depth')
     ax[0,1].set_title('Wt %')
