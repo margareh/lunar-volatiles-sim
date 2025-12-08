@@ -8,6 +8,7 @@ import os
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from lvsim.nss import NSS
 
@@ -49,15 +50,30 @@ if __name__ == "__main__":
     # display NSS observations
     fig, ax = plt.subplots(2,2,figsize=(20,20))
 
-    ax[0,0].imshow(ice_depth, cmap='Blues')
-    ax[0,1].imshow(ice_wt_pct, cmap='Oranges')
-    ax[1,0].imshow(obs1_map, cmap='PuRd_r')
-    ax[1,1].imshow(obs2_map, cmap='BuGn_r')
+    im00 = ax[0,0].imshow(ice_depth, cmap='Blues')
+    im01 = ax[0,1].imshow(ice_wt_pct, cmap='Oranges')
+    im10 = ax[1,0].imshow(obs1_map, cmap='PuRd_r')
+    im11 = ax[1,1].imshow(obs2_map, cmap='BuGn_r')
 
     ax[0,0].set_title('Depth')
     ax[0,1].set_title('Wt %')
     ax[1,0].set_title('Det 1 Count')
     ax[1,1].set_title('Det 2 Count')
+
+    div00 = make_axes_locatable(ax[0,0])
+    div01 = make_axes_locatable(ax[0,1])
+    div10 = make_axes_locatable(ax[1,0])
+    div11 = make_axes_locatable(ax[1,1])
+
+    cax00 = div00.append_axes('right', size='5%', pad=0.05)
+    cax01 = div01.append_axes('right', size='5%', pad=0.05)
+    cax10 = div10.append_axes('right', size='5%', pad=0.05)
+    cax11 = div11.append_axes('right', size='5%', pad=0.05)
+
+    fig.colorbar(im00, cax=cax00, orientation='vertical')
+    fig.colorbar(im01, cax=cax01, orientation='vertical')
+    fig.colorbar(im10, cax=cax10, orientation='vertical')
+    fig.colorbar(im11, cax=cax11, orientation='vertical')
 
     #plt.show()
     plt.savefig(os.path.join(args.map_path, 'nss_obs.png'), dpi=100, bbox_inches='tight')
