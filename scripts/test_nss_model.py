@@ -52,7 +52,7 @@ if __name__ == "__main__":
     ax[0,0].imshow(ice_depth, cmap='Blues')
     ax[0,1].imshow(ice_wt_pct, cmap='Oranges')
     ax[1,0].imshow(obs1_map, cmap='PuRd_r')
-    ax[1,1].imshow(obs2_map, cmap='BuGr_r')
+    ax[1,1].imshow(obs2_map, cmap='BuGn_r')
 
     ax[0,0].set_title('Depth')
     ax[0,1].set_title('Wt %')
