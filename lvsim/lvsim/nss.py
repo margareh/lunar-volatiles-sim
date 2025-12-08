@@ -5,7 +5,7 @@
 import pandas as pd
 import numpy as np
 
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import SmoothBivariateSpline
 
 # NSS sensor model class
 # contains ability to do forward (get wt % and depth given NSS obs) and 
@@ -38,9 +38,8 @@ class NSS():
 
     # create interpolation grid based on direction of model
     def setup(self):
-        data_rshp = self.data.reshape((15, 21, 4))
         # order of dataset: depth, wt %, detector 1 counts, detector 2 counts
-        self.det1 = RectBivariateSpline(np.unique(self.data[...,1]), np.unique(self.data[...,0]), data_rshp[...,2].T)
-        self.det2 = RectBivariateSpline(np.unique(self.data[...,1]), np.unique(self.data[...,0]), data_rshp[...,3].T)
-        self.depth = RectBivariateSpline(np.unique(self.data[...,2]), np.unique(self.data[...,3]), data_rshp[...,1].T)
-        self.wt_pct = RectBivariateSpline(np.unique(self.data[...,2]), np.unique(self.data[...,3]), data_rshp[...,0].T)
+        self.det1 = SmoothBivariateSpline(self.data[...,1], self.data[...,0], self.data[...,2])
+        self.det2 = SmoothBivariateSpline(self.data[...,1], self.data[...,0], self.data[...,3])
+        self.depth = SmoothBivariateSpline(self.data[...,2], self.data[...,3], self.data[...,1])
+        self.wt_pct = SmoothBivariateSpline(self.data[...,2], self.data[...,3], self.data[...,0])
