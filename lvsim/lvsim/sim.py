@@ -29,9 +29,9 @@ from synthterrain.crater import functions, determine_production_function, random
 from synthterrain.crater import generate_diameters
 from synthterrain.crater.age import equilibrium_age
 
-from .utils import LvSimCfg
-from .crater import profile, stopar_fresh_dd, in_crater
-from .nss import NSS
+from lvsim.utils import LvSimCfg
+from lvsim.crater import profile, stopar_fresh_dd, in_crater
+from lvsim.nss import NSS
 
 from moonpies.moonpies import MoonPIES
 from moonpies import config as mp_config
@@ -225,50 +225,57 @@ class LvSim():
         print("\tIlluminating model...")
         self.illuminate()
 
-        # save the list of craters, current surface, and illumination model
-        self.save()
-
         # config for moonpies
         mp_cfg = mp_config.read_custom_cfg(self.cfg.args.mp_cfg,
                                            seed=self.cfg.args.seed + 1000,
                                            gridsize=self.cfg.args.bbox[1],
                                            gridres=self.cfg.args.res,
-                                           outpath=os.path.join(self.cfg.args.datapath, 'moonpies'))
+                                           outpath=os.path.join(self.cfg.args.outpath, 'moonpies'),
+                                           datapath='/home/margareh/lunar-volatiles-sim/moonpies/moonpies/data')
 
-        if os.path.exists(os.path.join(self.cfg.args.datapath, 'moonpies')) == False:
-            os.mkdir(os.path.join(self.cfg.args.datapath, 'moonpies'))
+        if os.path.exists(os.path.join(self.cfg.args.outpath, 'moonpies')) == False:
+            os.mkdir(os.path.join(self.cfg.args.outpath, 'moonpies'))
 
-        # initialize moonpies sim and NSS model
-        self.mp_sim = MoonPIES(mp_cfg, crater_db=self.get_mp_info(), psr_mask=self.psr)
+        # initialize moonpies sim and NSS model        
+        self.mp_sim = MoonPIES(mp_cfg, crater_db=self.add_mp_info(end_age=self.t*1e9), psr_mask=self.psr)
         self.nss = NSS(self.cfg.args.nss_file)
+        self.det1 = np.zeros_like(self.surface)
+        self.det2 = np.zeros_like(self.surface)
+
+        # save the list of craters, current surface, and illumination model
+        self.save()
 
 
     # return the crater df and psr mask for moonpies
-    def get_mp_info(self, end_age):
+    def add_mp_info(self, end_age):
         
         # only send new craters (formed between current and last time step) to moonpies
         # psrs will be all formed so far
         # crater_df = self.crater_df[self.crater_df["new"]]
         
+        crater_df = copy.copy(self.crater_df)
+
         # increase crater age based on length of sim
-        self.crater_df['age'] += end_age
+        crater_df['age'] += end_age
 
         # add columns to crater dataframe as needed for moonpies
-        self.crater_df['cname'] = self.crater_df.index
-        self.crater_df['age_upp'] = self.crater_df['age_low'] = self.crater_df['age']
-        self.crater_df["rad"] = self.crater_df["diameter"] / 2
+        crater_df['cname'] = crater_df.index
+        crater_df['age_upp'] = crater_df['age_low'] = crater_df['age']
+        crater_df["rad"] = crater_df["diameter"] / 2
 
         with Pool() as p:
-            args_mp = [(self.crater_df.x.values[i], self.crater_df.y.values[i], self.crater_df.diameter.values[i], self.cfg.args.dim, self.cfg.args.res, self.transform) for i in range(len(self.crater_df))]
+            args_mp = [(crater_df.x.values[i], crater_df.y.values[i], crater_df.diameter.values[i], self.surface.shape[0], self.cfg.args.res, self.transform) for i in range(len(crater_df))]
             in_crater_row = p.map(in_crater_mp, args_mp)
 
-        self.crater_df['in_crater'] = in_crater_row
+        crater_df['in_crater'] = in_crater_row
 
         with Pool() as p:
-            args_mp = [(self.crater_df.in_crater.values[i], self.psr, self.cfg.args.res) for i in range(len(self.crater_df))]
+            args_mp = [(crater_df.in_crater.values[i], self.psr, self.cfg.args.res) for i in range(len(crater_df))]
             psr_area = p.map(psr_area_mp, args_mp)
 
-        self.crater_df['psr_area'] = psr_area
+        crater_df['psr_area'] = psr_area
+
+        return crater_df
         
 
     # Run through all steps
@@ -279,7 +286,7 @@ class LvSim():
         while self.t-self.cfg.args.time_delta >= 0:
 
             # Take a step
-            self.t -= self.cfg.args.time_delta
+            self.t = np.round(self.t-self.cfg.args.time_delta, decimals=3) # allows for 1 Myr increments
             i += 1
 
             # Print time update
@@ -298,13 +305,13 @@ class LvSim():
 
             # ice distribution via moonpies sim
             # TODO: integrate synthterrain crater degradation
-            self.mp_sim.update_crater_info(crater_db=self.get_mp_info(), psr_mask=self.psr)
-            start_time = self.t+self.cfg.args.time_delta
-            if i == 1:
-                start_time += 100
+            print("Updating moonpies")
+            self.mp_sim.update_crater_info(crater_db=self.add_mp_info(end_age=self.t*1e9), psr_mask=self.psr)
+            start_time = np.round(self.t+self.cfg.args.time_delta, decimals=3)
             self.mp_sim.run_between(start_time * 1e9, self.t * 1e9)
 
             # NSS observations
+            print("Updating NSS")
             self.calc_nss_obs()
 
             # save the results (moonpies results are saved separately)
@@ -401,27 +408,29 @@ class LvSim():
         else:
             all_df = copy.copy(new_df)
 
-        # Apply diffusion to surface
-        # code adapted from synthterrain
-        k = 5.5e-6 # 5.5e-6 * pow(diam / 1000, 0.9) for craters
-        age = self.cfg.args.time_delta * 1e9
-        avg_diam = np.mean(all_df.diameter.values)
-        D = self.surface.shape[0]
-        kappa_t = k * age
-        dls = (avg_diam / D)**2 # pow((2 * diam / D), 2) / 4 = (diam / D)^2 for craters
-        nsteps = math.ceil(kappa_t / dls)
-        dx2 = (avg_diam * 2 / D) * (avg_diam * 2 / D)
+        # # Apply diffusion to surface
+        # # code adapted from synthterrain
+        # print("Diffusing surface")
+        # k = 5.5e-6 # 5.5e-6 * pow(diam / 1000, 0.9) for craters
+        # age = self.cfg.args.time_delta * 1e9
+        # avg_diam = np.mean(all_df.diameter.values)
+        # # print(avg_diam)
+        # D = self.surface.shape[0]
+        # kappa_t = k * age
+        # dls = 1
+        # dx2 = (avg_diam * 2 / D) * (avg_diam * 2 / D)
 
-        un = u = copy.copy(self.surface)
-        for _ in range(nsteps):
-            un[1:-1, 1:-1] = u[1:-1, 1:-1] + dls * (
-                (u[2:, 1:-1] - 2 * u[1:-1, 1:-1] + u[:-2, 1:-1]) / dx2
-                + (u[1:-1, 2:] - 2 * u[1:-1, 1:-1] + u[1:-1, :-2]) / dx2
-            )
-            u = np.copy(un)
-        self.surface = copy.copy(u)
+        # un = u = copy.copy(self.surface)
+        # for _ in range(math.ceil(kappa_t)):
+        #     un[1:-1, 1:-1] = u[1:-1, 1:-1] + dls * (
+        #         (u[2:, 1:-1] - 2 * u[1:-1, 1:-1] + u[:-2, 1:-1]) / dx2
+        #         + (u[1:-1, 2:] - 2 * u[1:-1, 1:-1] + u[1:-1, :-2]) / dx2
+        #     )
+        #     u = np.copy(un)
+        # self.surface = copy.copy(u)
 
         # Apply diffusion model to craters
+        print("Diffusing craters")
         surfs_np = np.array(all_df["surface"].tolist())
         start = time.time()
         new_ratios, new_surfs = diffusion_cuda(all_df["diameter"].values, all_df["d/D"].values, all_df["age"].values, surfs_np, D=self.cfg.args.domain_size)
@@ -513,15 +522,17 @@ class LvSim():
         self.psr = new_psrs
 
     # compute observations from NSS sensor
-    # TODO: check ejecta total (should it be below ice depth only?)
     def calc_nss_obs(self, noise=False):
-        n, m = self.depth.shape
+        n, m = self.mp_sim.depth.shape
         ice_tot = np.sum(self.mp_sim.ice_col_grid, axis=0)
-        ej_tot = np.sum(self.mp_sim.ej_col_grid, axis=0)
-        ice_wt = (ice_tot * (self.cfg.args.map_res**2)) * self.cfg.args.ice_density
-        ej_wt = (ej_tot * (self.cfg.args.map_res**2)) * self.cfg.args.reg_density    
+        with np.errstate(divide='ignore', invalid='ignore'):
+            ej_tot = (ice_tot * (1-self.mp_sim.frac)) / self.mp_sim.frac
+        
+        ice_wt = (ice_tot * (self.cfg.args.res**2)) * self.cfg.args.ice_density
+        ej_wt = (ej_tot * (self.cfg.args.res**2)) * self.cfg.args.reg_density
         ice_wt_pct = ice_wt / (ice_wt + ej_wt)
-        obs1, obs2 = self.nss.inverse(ice_wt_pct.reshape((n*m)), self.depth.reshape((n*m)), noise=noise)
+        
+        obs1, obs2 = self.nss.inverse(ice_wt_pct.reshape((n*m)), self.mp_sim.depth.reshape((n*m)), noise=noise)
         self.det1 = obs1.reshape((n, m))
         self.det2 = obs2.reshape((n, m))
 

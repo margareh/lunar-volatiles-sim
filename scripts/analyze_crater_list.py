@@ -194,24 +194,8 @@ def get_fft(img):
     ft = np.fft.fftshift(ft)
     return ft
 
-
-if __name__ == "__main__":
-
-    # parse arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--datapath', type=str, help='Path to data to analyze')
-    parser.add_argument('--dim', type=int, default=200, help='Side dimensions of map (number of pixels)')
-    parser.add_argument('--res', type=float, default=1., help='Resolution of map (meters per pixel)')
-    parser.add_argument('--plot', action='store_true', help='Flag to plot analysis figures instead of saving them')
-    parser.add_argument('--age', type=float, nargs=2, default=[3.79, 0], help='Age of first and last non-flat terrain surface in Gyr')
-    parser.add_argument('--haworth_dem', type=str, help='File path to Haworth DEM', default='/media/usb/ThesisWork/Volatiles/SouthPoleData/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif')
-    args = parser.parse_args()
-
-    if os.path.exists(os.path.join(args.datapath, 'figs')) == False:
-        os.mkdir(os.path.join(args.datapath, 'figs'))
-
-    first_step = str(int(args.age[0] * 1000))
-    last_step= str(int(args.age[1] * 1000))
+# wrapper function
+def analyze_crater_list(args, first_step, last_step):
 
     # crater ages and diameters over time to make sure these are trending correctly
     plot_diam_by_age('crater_list_'+first_step+'.csv', args)
@@ -277,3 +261,24 @@ if __name__ == "__main__":
 
     # make gif of heightmaps
     imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), imgs, duration = 500, loop=0)
+    
+
+if __name__ == "__main__":
+
+    # parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--datapath', type=str, help='Path to data to analyze')
+    parser.add_argument('--dim', type=int, default=200, help='Side dimensions of map (number of pixels)')
+    parser.add_argument('--res', type=float, default=1., help='Resolution of map (meters per pixel)')
+    parser.add_argument('--plot', action='store_true', help='Flag to plot analysis figures instead of saving them')
+    parser.add_argument('--age', type=float, nargs=2, default=[3.79, 0], help='Age of first and last non-flat terrain surface in Gyr')
+    parser.add_argument('--haworth_dem', type=str, help='File path to Haworth DEM', default='/media/usb/ThesisWork/Volatiles/SouthPoleData/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif')
+    args = parser.parse_args()
+
+    if os.path.exists(os.path.join(args.datapath, 'figs')) == False:
+        os.mkdir(os.path.join(args.datapath, 'figs'))
+
+    first_step = str(int(args.age[0] * 1000))
+    last_step= str(int(args.age[1] * 1000))
+
+    analyze_crater_list(args, first_step, last_step)    

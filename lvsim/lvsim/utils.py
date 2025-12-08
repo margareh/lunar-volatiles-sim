@@ -120,7 +120,7 @@ class LvSimCfg():
         # args for nss
         parser.add_argument('--nss_file',
                             type=str,
-                            default='../../data/leaf_LP.csv',
+                            default='../../data/NSS/leaf_LP.csv',
                             help='File path to file with NSS calibration data')
         parser.add_argument('--ice_density',
                             type=float,

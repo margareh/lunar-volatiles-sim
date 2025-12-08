@@ -29,13 +29,16 @@ if __name__ == "__main__":
     ice_depth = map_data['ice_depth']
     ice_frac = map_data['ice_frac']
     ice_tot = np.sum(map_data['ice_col_grid'], axis=0)
-    ej_tot = np.sum(map_data['ej_col_grid'], axis=0)
+    # ej_tot = np.sum(map_data['ej_col_grid'], axis=0)
     n,m = ice_depth.shape
 
     # convert fraction to wt %
     ice_wt = (ice_tot * (args.map_res**2)) * args.ice_density
-    ej_wt = (ej_tot * (args.map_res**2)) * args.reg_density    
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ej_tot = (ice_tot * (1-ice_frac)) / ice_frac
+    ej_wt = (ej_tot * (args.map_res**2)) * args.reg_density
     ice_wt_pct = ice_wt / (ice_wt + ej_wt)
+    ice_wt_pct[ice_frac < 0.0001] = 0
 
     # reshape inputs
     depth = ice_depth.reshape((n*m))
