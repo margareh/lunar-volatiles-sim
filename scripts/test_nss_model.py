@@ -28,11 +28,11 @@ if __name__ == "__main__":
     ice_depth = map_data['ice_depth']
     ice_frac = map_data['ice_frac']
     ice_tot = np.sum(map_data['ice_col_grid'], axis=0)
+    ej_tot = np.sum(map_data['ej_col_grid'], axis=0)
     n,m = ice_depth.shape
 
     # convert fraction to wt %
     ice_wt = (ice_tot * (args.map_res**2)) * args.ice_density
-    ej_tot = (ice_tot * (1-ice_frac)) / ice_frac
     ej_wt = (ej_tot * (args.map_res**2)) * args.reg_density    
     ice_wt_pct = ice_wt / (ice_wt + ej_wt)
 
@@ -59,5 +59,5 @@ if __name__ == "__main__":
     ax[1,0].set_title('Det 1 Count')
     ax[1,1].set_title('Det 2 Count')
 
-    plt.show()
-    # plt.savefig(os.path.join(args.map_path, 'nss_obs.png'), dpi=100, bbox_inches='tight')
+    #plt.show()
+    plt.savefig(os.path.join(args.map_path, 'nss_obs.png'), dpi=100, bbox_inches='tight')
