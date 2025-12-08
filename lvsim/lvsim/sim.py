@@ -373,6 +373,26 @@ class LvSim():
         else:
             all_df = copy.copy(new_df)
 
+        # Apply diffusion to surface
+        # code adapted from synthterrain
+        k = 5.5e-6 # 5.5e-6 * pow(diam / 1000, 0.9) for craters
+        age = self.cfg.args.time_delta * 1e9
+        avg_diam = np.mean(all_df.diameter.values)
+        D = self.surface.shape[0]
+        kappa_t = k * age
+        dls = (avg_diam / D)**2 # pow((2 * diam / D), 2) / 4 = (diam / D)^2 for craters
+        nsteps = math.ceil(kappa_t / dls)
+        dx2 = (avg_diam * 2 / D) * (avg_diam * 2 / D)
+
+        un = u = copy.copy(self.surface)
+        for _ in range(nsteps):
+            un[1:-1, 1:-1] = u[1:-1, 1:-1] + dls * (
+                (u[2:, 1:-1] - 2 * u[1:-1, 1:-1] + u[:-2, 1:-1]) / dx2
+                + (u[1:-1, 2:] - 2 * u[1:-1, 1:-1] + u[1:-1, :-2]) / dx2
+            )
+            u = np.copy(un)
+        self.surface = copy.copy(u)
+
         # Apply diffusion model to craters
         surfs_np = np.array(all_df["surface"].tolist())
         start = time.time()
