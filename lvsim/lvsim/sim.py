@@ -152,6 +152,21 @@ def make_heightmap(df, init_surface, tf):
 
     return new_surf
 
+# functions for multiprocessing
+# calculate crater flags
+def in_crater_mp(args):
+    x = args[0]
+    y = args[1]
+    diam = args[2]
+    dim = args[3]
+    res = args[4]
+    tf = args[5]
+    return in_crater(x, y, diam, dim, res, tf)
+
+# calculate psr area
+def psr_area_mp(args):
+    return np.sum(args[0] * args[1]) * (args[2]**2)
+
 
 # class for lunar volatiles sim
 class LvSim():
@@ -223,8 +238,9 @@ class LvSim():
         if os.path.exists(os.path.join(self.cfg.args.datapath, 'moonpies')) == False:
             os.mkdir(os.path.join(self.cfg.args.datapath, 'moonpies'))
 
-        # initialize moonpies sim
+        # initialize moonpies sim and NSS model
         self.mp_sim = MoonPIES(mp_cfg, crater_db=self.get_mp_info(), psr_mask=self.psr)
+        self.nss = NSS(self.cfg.args.nss_file)
 
 
     # return the crater df and psr mask for moonpies
@@ -232,21 +248,28 @@ class LvSim():
         
         # only send new craters (formed between current and last time step) to moonpies
         # psrs will be all formed so far
-        crater_df = self.crater_df[self.crater_df["new"]]
+        # crater_df = self.crater_df[self.crater_df["new"]]
         
         # increase crater age based on length of sim
-        crater_df['age'] += end_age
+        self.crater_df['age'] += end_age
 
         # add columns to crater dataframe as needed for moonpies
-        crater_df['cname'] = crater_df.index
-        crater_df['age_upp'] = crater_df['age_low'] = crater_df['age']
-        crater_df["rad"] = crater_df["diameter"] / 2
-        crater_df['in_crater'] = crater_df.apply(lambda row: in_crater(row["x"], row["y"], row["diameter"], self.cfg.args.dim, self.cfg.args.res, self.transform), axis=1)
-        # crater_df['psr_flag'] = crater_df.apply(lambda row: row['in_crater'] * self.psr, axis=1)
-        crater_df['psr_area'] = crater_df.apply(lambda row: np.sum(row['in_crater'] * self.psr) * (self.cfg.args.res**2), axis=1)
-        
-        return crater_df
+        self.crater_df['cname'] = self.crater_df.index
+        self.crater_df['age_upp'] = self.crater_df['age_low'] = self.crater_df['age']
+        self.crater_df["rad"] = self.crater_df["diameter"] / 2
 
+        with Pool() as p:
+            args_mp = [(self.crater_df.x.values[i], self.crater_df.y.values[i], self.crater_df.diameter.values[i], self.cfg.args.dim, self.cfg.args.res, self.transform) for i in range(len(self.crater_df))]
+            in_crater_row = p.map(in_crater_mp, args_mp)
+
+        self.crater_df['in_crater'] = in_crater_row
+
+        with Pool() as p:
+            args_mp = [(self.crater_df.in_crater.values[i], self.psr, self.cfg.args.res) for i in range(len(self.crater_df))]
+            psr_area = p.map(psr_area_mp, args_mp)
+
+        self.crater_df['psr_area'] = psr_area
+        
 
     # Run through all steps
     def run_all(self):
@@ -273,15 +296,19 @@ class LvSim():
 
             # TODO: calc psrs based on thermal model instead of illumination
 
-            # save the results from terrain changes
-            self.save()
+            # ice distribution via moonpies sim
+            # TODO: integrate synthterrain crater degradation
+            self.mp_sim.update_crater_info(crater_db=self.get_mp_info(), psr_mask=self.psr)
+            start_time = self.t+self.cfg.args.time_delta
+            if i == 1:
+                start_time += 100
+            self.mp_sim.run_between(start_time * 1e9, self.t * 1e9)
 
-            # ice distribution
-            # moonpies separately saves its results
-            self.mp_sim.cfg.timestart = (self.t+self.cfg.args.time_delta) * 1e9 # yr
-            self.mp_sim.cfg.timeend = self.t * 1e9
-            self.mp_sim.update_crater_info(crater_db=self.get_mp_info(end_age=self.t*1e9), psr_mask=self.psr)
-            self.mp_sim.run()
+            # NSS observations
+            self.calc_nss_obs()
+
+            # save the results (moonpies results are saved separately)
+            self.save()
 
         end_all = time.time()
         print("Overall runtime (minutes): %4.4f" % ((end_all - start_all) / 60))
@@ -485,6 +512,19 @@ class LvSim():
         self.illumin_frac = new_illumin_frac
         self.psr = new_psrs
 
+    # compute observations from NSS sensor
+    # TODO: check ejecta total (should it be below ice depth only?)
+    def calc_nss_obs(self, noise=False):
+        n, m = self.depth.shape
+        ice_tot = np.sum(self.mp_sim.ice_col_grid, axis=0)
+        ej_tot = np.sum(self.mp_sim.ej_col_grid, axis=0)
+        ice_wt = (ice_tot * (self.cfg.args.map_res**2)) * self.cfg.args.ice_density
+        ej_wt = (ej_tot * (self.cfg.args.map_res**2)) * self.cfg.args.reg_density    
+        ice_wt_pct = ice_wt / (ice_wt + ej_wt)
+        obs1, obs2 = self.nss.inverse(ice_wt_pct.reshape((n*m)), self.depth.reshape((n*m)), noise=noise)
+        self.det1 = obs1.reshape((n, m))
+        self.det2 = obs2.reshape((n, m))
+
     # save crater dataframe and plots
     def save(self):
 
@@ -499,7 +539,7 @@ class LvSim():
         )
 
         # save surface and illumination
-        np.savez_compressed(os.path.join(self.cfg.args.outpath, 'maps_'+ts+'.npz'), surface=self.surface, illumin_frac=self.illumin_frac, psr=self.psr, age=self.surface_age)
+        np.savez_compressed(os.path.join(self.cfg.args.outpath, 'maps_'+ts+'.npz'), surface=self.surface, illumin_frac=self.illumin_frac, psr=self.psr, age=self.surface_age, det1=self.det1, det2=self.det2)
 
         # plots
         fig, ax = plt.subplots(2,3)

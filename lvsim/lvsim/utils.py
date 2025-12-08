@@ -117,6 +117,20 @@ class LvSimCfg():
                             default='../../moonpies/moonpies/configs/lvsim_config.py',
                             help='Config file to use for moonpies')
         
+        # args for nss
+        parser.add_argument('--nss_file',
+                            type=str,
+                            default='../../data/leaf_LP.csv',
+                            help='File path to file with NSS calibration data')
+        parser.add_argument('--ice_density',
+                            type=float,
+                            default=934.,
+                            help='Ice density to use (kg / m^3)')
+        parser.add_argument('--reg_density',
+                            type=float,
+                            default=1500.,
+                            help='Regolith density to use (kg / m^3)')
+        
         # parse args at the end and save
         # this also adds any additional arguments that were added
         args_to_parse = copy.copy(sys.argv[1:])
