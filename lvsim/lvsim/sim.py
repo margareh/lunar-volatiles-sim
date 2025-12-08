@@ -29,10 +29,11 @@ from synthterrain.crater import functions, determine_production_function, random
 from synthterrain.crater import generate_diameters
 from synthterrain.crater.age import equilibrium_age
 
-from lvsim.utils import LvSimCfg
-from lvsim.crater import profile, stopar_fresh_dd, in_crater
+from .utils import LvSimCfg
+from .crater import profile, stopar_fresh_dd, in_crater
+from .nss import NSS
 
-from moonpies import MoonPIES
+from moonpies.moonpies import MoonPIES
 from moonpies import config as mp_config
 
 # some global defines
@@ -213,11 +214,11 @@ class LvSim():
         self.save()
 
         # config for moonpies
-        mp_cfg = mp_config.read_custom_cfg(self.cfg.args.mp_cfg, self.cfg.args.seed + 1000)
-        mp_cfg.grdxsize = self.cfg.args.bbox[1]
-        mp_cfg.grdysize = self.cfg.args.bbox[2]
-        mp_cfg.grdstep = self.cfg.args.res
-        mp_cfg.out_path = os.path.join(self.cfg.args.datapath, 'moonpies')
+        mp_cfg = mp_config.read_custom_cfg(self.cfg.args.mp_cfg,
+                                           seed=self.cfg.args.seed + 1000,
+                                           gridsize=self.cfg.args.bbox[1],
+                                           gridres=self.cfg.args.res,
+                                           outpath=os.path.join(self.cfg.args.datapath, 'moonpies'))
 
         if os.path.exists(os.path.join(self.cfg.args.datapath, 'moonpies')) == False:
             os.mkdir(os.path.join(self.cfg.args.datapath, 'moonpies'))
