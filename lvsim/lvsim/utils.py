@@ -28,7 +28,7 @@ class LvSimCfg():
                             help='Maximum age in gigayears (AKA start time of model)')
         parser.add_argument('--time_delta',
                             type=float,
-                            default=0.01,
+                            default=0.1,
                             help='Time delta in gigayears')
         parser.add_argument('--d_to_D_threshold',
                             type=float,
