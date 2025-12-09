@@ -1,7 +1,14 @@
 # Lunar Volatiles Sim
 Simulation for generating synthetic distributions of craters, lunar volatiles, and associated instrument measurements from a neutron spectrometer (NSS). This proceeds by cratering a surface over geologic time scales, implanting volatiles, and updating the surface model and volatiles distribution at each time step until the "present day."
 
-Example output is shown below for a 200 x 200 m map:
+Example output is shown below for a 200 x 200 m map, with the surface on the left and the PSR mask on the right:
+
+<img width="400" height="416" alt="hillshade_dem_crop" src="https://github.com/user-attachments/assets/2de048ab-1eaa-49b5-bc83-a748363c3e3f" />
+<img width="424" height="416" alt="final_psr_mask" src="https://github.com/user-attachments/assets/0fa5a542-925e-48c9-a419-89d60f91eb6f" />
+
+The corresponding depth to lunar volatiles, volatile weight %, and observations for both detectors of the NSS are shown below:
+
+<img width="1000" height="960" alt="nss_obs" src="https://github.com/user-attachments/assets/03b18a8f-86cc-488f-8680-82daaed8b910" />
 
 
 # Installing the Sim
