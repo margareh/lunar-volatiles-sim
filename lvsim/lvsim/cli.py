@@ -11,7 +11,7 @@ Example:
 
 """
 
-from lvsim.lvsim import LvSim
+from lvsim.sim import LvSim
 from lvsim.utils import LvSimCfg
 from lvsim.analysis import analyze_sim
 
