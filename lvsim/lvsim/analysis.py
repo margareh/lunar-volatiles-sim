@@ -182,4 +182,4 @@ def analyze_sim(args):
 if __name__ == "__main__":
 
     cfg = LvSimCfg()
-    analyze_sim(cfg)
+    analyze_sim(cfg.args)
