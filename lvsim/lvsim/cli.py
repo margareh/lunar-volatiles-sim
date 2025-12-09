@@ -25,7 +25,7 @@ def run():
     lvsim.run_all()
 
     # analyze results
-    analyze_sim(cfg)
+    analyze_sim(cfg.args)
     
 
 if __name__ == "__main__":
