@@ -18,7 +18,7 @@ class LvSimCfg():
         # paths
         parser.add_argument('--outpath',
                             type=str,
-                            default='/home/margareh/lunar-volatiles-sim/output',
+                            default='output',
                             help='Location for storing output')
         
         # args for lvsim
@@ -80,7 +80,7 @@ class LvSimCfg():
                             help='Resolution for azimuths for computing horizon, in degrees')
         parser.add_argument('--eph_file',
                             type=str,
-                            default='/home/margareh/lunar-volatiles-sim/data/JPLHorizons/sun_position_2004_2024_values_only.txt',
+                            default='data/JPLHorizons/sun_position_2004_2024_values_only.txt',
                             help='File location for ephemeris data from JPL Horizons')
         parser.add_argument('--psr_threshold',
                             type=float,
@@ -117,13 +117,13 @@ class LvSimCfg():
         # args for moonpies
         parser.add_argument('--mp_cfg',
                             type=str,
-                            default='../../moonpies/moonpies/configs/lvsim_config.py',
+                            default='moonpies/moonpies/configs/lvsim_config.py',
                             help='Config file to use for moonpies')
         
         # args for nss
         parser.add_argument('--nss_file',
                             type=str,
-                            default='../../data/NSS/leaf_LP.csv',
+                            default='data/NSS/leaf_LP.csv',
                             help='File path to file with NSS calibration data')
         parser.add_argument('--ice_density',
                             type=float,
@@ -138,7 +138,7 @@ class LvSimCfg():
         parser.add_argument('--haworth_dem',
                             type=str,
                             help='File path to Haworth DEM',
-                            default='../../data/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif')
+                            default='data/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif')
                 
         # parse args at the end and save
         # this also adds any additional arguments that were added
