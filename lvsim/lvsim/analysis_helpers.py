@@ -38,7 +38,7 @@ def plot_sfd(file, args):
 
     # load the last crater list
     # has columns: x, y, diameter, age, d/D
-    crater_df = pd.read_csv(os.path.join(args.datapath, file))
+    crater_df = pd.read_csv(os.path.join(args.outpath, file))
     min_d = np.min(crater_df.diameter.values)
     max_d = np.max(crater_df.diameter.values)
     print("Min diameter (m): %4.2f" % (min_d)) # 1.0
@@ -72,7 +72,7 @@ def plot_sfd(file, args):
     if args.plot:
         plt.show()
     else:
-        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_sfd.png')), dpi=100, bbox_inches='tight')
+        plt.savefig(os.path.join(args.outpath, 'figs', file.replace('.csv', '_sfd.png')), dpi=100, bbox_inches='tight')
         plt.close()
 
 
@@ -80,7 +80,7 @@ def plot_sfd(file, args):
 def plot_diam_by_age(file, args):
 
     # load
-    crater_df = pd.read_csv(os.path.join(args.datapath, file))
+    crater_df = pd.read_csv(os.path.join(args.outpath, file))
     diams = crater_df.diameter.values
     min_d = np.min(diams)
     max_d = np.max(diams)
@@ -102,7 +102,7 @@ def plot_diam_by_age(file, args):
     if args.plot:
         plt.show()
     else:
-        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
+        plt.savefig(os.path.join(args.outpath, 'figs', file.replace('.csv', '_age_dist.png')), dpi=100, bbox_inches='tight')
         plt.close()
 
 
@@ -125,7 +125,7 @@ def plot_slope_hist(file, args):
     # print(haworth_slope.shape)
 
     # load surface
-    maps = np.load(os.path.join(args.datapath, file))
+    maps = np.load(os.path.join(args.outpath, file))
     surf = maps['surface']
 
     # compute slope of surface
@@ -161,7 +161,7 @@ def plot_slope_hist(file, args):
     if args.plot:
         plt.show()
     else:
-        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.npz', '_slope_imgs.png')), dpi=100, bbox_inches='tight')
+        plt.savefig(os.path.join(args.outpath, 'figs', file.replace('.npz', '_slope_imgs.png')), dpi=100, bbox_inches='tight')
         plt.close()
 
     # plot both on same histogram
@@ -182,7 +182,7 @@ def plot_slope_hist(file, args):
     if args.plot:
         plt.show()
     else:
-        plt.savefig(os.path.join(args.datapath, 'figs', file.replace('.npz', '_slope_hist.png')), dpi=100, bbox_inches='tight')
+        plt.savefig(os.path.join(args.outpath, 'figs', file.replace('.npz', '_slope_hist.png')), dpi=100, bbox_inches='tight')
         plt.close()
 
     return surf, haworth_dem
@@ -232,12 +232,12 @@ def analyze_crater_list(args, first_step, last_step):
     if args.plot:
         plt.show()
     else:
-        plt.savefig(os.path.join(args.datapath, 'figs', 'hillshade_dems_ffts.png'), dpi=100, bbox_inches='tight')
+        plt.savefig(os.path.join(args.outpath, 'figs', 'hillshade_dems_ffts.png'), dpi=100, bbox_inches='tight')
         plt.close()
 
 
     # make gif of heightmaps (use hillshaded DEMs for this)
-    files = os.listdir(args.datapath)
+    files = os.listdir(args.outpath)
     map_files = [f for f in files if f.find('npz') > 0]
     time_steps = [int(re.sub('\D', '', f)) for f in map_files]
     print(time_steps)
@@ -249,25 +249,25 @@ def analyze_crater_list(args, first_step, last_step):
         print(t)
 
         # make hillshaded version of image
-        maps = np.load(os.path.join(args.datapath, map_files_sort[t]))
+        maps = np.load(os.path.join(args.outpath, map_files_sort[t]))
         surf = maps['surface']
         plt.imshow(ls.hillshade(surf), cmap='gray')
-        plt.savefig(os.path.join(args.datapath, 'plots', map_files_sort[t].replace('.npz', '_hillshade.png')), bbox_inches='tight', dpi=100)
+        plt.savefig(os.path.join(args.outpath, 'plots', map_files_sort[t].replace('.npz', '_hillshade.png')), bbox_inches='tight', dpi=100)
         plt.close()
 
         # load the new image and append to list
-        new_img = imageio.imread(os.path.join(args.datapath, 'plots', map_files_sort[t].replace('.npz', '_hillshade.png')))
+        new_img = imageio.imread(os.path.join(args.outpath, 'plots', map_files_sort[t].replace('.npz', '_hillshade.png')))
         imgs.append(new_img)
 
     # make gif of heightmaps
-    imageio.mimsave(os.path.join(args.datapath, 'figs', 'hmaps.gif'), imgs, duration = 500, loop=0)
+    imageio.mimsave(os.path.join(args.outpath, 'figs', 'hmaps.gif'), imgs, duration = 500, loop=0)
     
 
 if __name__ == "__main__":
 
     # parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datapath', type=str, help='Path to data to analyze')
+    parser.add_argument('--outpath', type=str, help='Path to data to analyze')
     parser.add_argument('--dim', type=int, default=200, help='Side dimensions of map (number of pixels)')
     parser.add_argument('--res', type=float, default=1., help='Resolution of map (meters per pixel)')
     parser.add_argument('--plot', action='store_true', help='Flag to plot analysis figures instead of saving them')
@@ -275,8 +275,8 @@ if __name__ == "__main__":
     parser.add_argument('--haworth_dem', type=str, help='File path to Haworth DEM', default='/media/usb/ThesisWork/Volatiles/SouthPoleData/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif')
     args = parser.parse_args()
 
-    if os.path.exists(os.path.join(args.datapath, 'figs')) == False:
-        os.mkdir(os.path.join(args.datapath, 'figs'))
+    if os.path.exists(os.path.join(args.outpath, 'figs')) == False:
+        os.mkdir(os.path.join(args.outpath, 'figs'))
 
     first_step = str(int(args.age[0] * 1000))
     last_step= str(int(args.age[1] * 1000))
