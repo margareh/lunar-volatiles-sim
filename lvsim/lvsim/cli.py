@@ -11,9 +11,9 @@ Example:
 
 """
 
-import argparse
 from lvsim.lvsim import LvSim
 from lvsim.utils import LvSimCfg
+from lvsim.analysis import analyze_sim
 
 def run():
     
@@ -23,6 +23,9 @@ def run():
 
     # run sim
     lvsim.run_all()
+
+    # analyze results
+    analyze_sim(cfg)
     
 
 if __name__ == "__main__":

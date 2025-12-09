@@ -230,11 +230,13 @@ class LvSim():
                                            seed=self.cfg.args.seed + 1000,
                                            gridsize=self.cfg.args.bbox[1],
                                            gridres=self.cfg.args.res,
-                                           outpath=os.path.join(self.cfg.args.outpath, 'moonpies'),
+                                           outpath=self.cfg.args.mppath,
                                            datapath='/home/margareh/lunar-volatiles-sim/moonpies/moonpies/data')
 
-        if os.path.exists(os.path.join(self.cfg.args.outpath, 'moonpies')) == False:
-            os.mkdir(os.path.join(self.cfg.args.outpath, 'moonpies'))
+        if os.path.exists(self.cfg.args.mppath) == False:
+            os.mkdir(self.cfg.args.mppath)
+
+        self.cfg.args.mppath = os.path.join(self.cfg.args.mppath, str(self.cfg.args.seed + 1000))
 
         # initialize moonpies sim and NSS model        
         self.mp_sim = MoonPIES(mp_cfg, crater_db=self.add_mp_info(end_age=self.t*1e9), psr_mask=self.psr)
@@ -294,7 +296,7 @@ class LvSim():
 
             # terrain changes (diffusion, production of new craters, removal of old craters)
             self.evolve_terrain()
-            if self.cfg.args.d_to_D_threshold > 0:
+            if self.cfg.args.surface_age:
                 self.update_surface_age()
 
             # compute illumination

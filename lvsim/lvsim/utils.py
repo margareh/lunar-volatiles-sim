@@ -41,6 +41,9 @@ class LvSimCfg():
                             type=int,
                             default=100,
                             help='Iterations for Monte Carlo simulations')
+        parser.add_argument('--surface_age',
+                            action='store_true',
+                            help='Flag for computing the surface age (do not use with large maps)')
 
         # args for synthterrain
         parser.add_argument('--bbox',
@@ -131,6 +134,12 @@ class LvSimCfg():
                             default=1500.,
                             help='Regolith density to use (kg / m^3)')
         
+        # args for analysis
+        parser.add_argument('--haworth_dem',
+                            type=str,
+                            help='File path to Haworth DEM',
+                            default='../../data/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif')
+                
         # parse args at the end and save
         # this also adds any additional arguments that were added
         args_to_parse = copy.copy(sys.argv[1:])
@@ -166,6 +175,10 @@ class LvSimCfg():
         if os.path.exists(os.path.join(self.args.outpath, 'plots')) == False:
             os.mkdir(os.path.join(self.args.outpath, 'plots'))
 
+        # add arguments for analysis
+        self.args.dim = self.args.bbox[1]
+        self.args.age = [np.round(self.args.max_age-self.args.time_delta, decimals=3), 0]
+        self.args.mppath = os.path.join(self.args.outpath, 'moonpies')
 
 
 # conversion from spherical coordinates to cartesian
