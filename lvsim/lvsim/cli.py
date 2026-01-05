@@ -2,7 +2,7 @@
 Command-line interface for lunar volatiles sim
 
 Usage: 
-    lvsim N [options]
+    lvsim [options] N
 
 Arguments:
     N = number of iterations to run
@@ -23,8 +23,8 @@ Options (most useful ones are listed below):
     surface_age     Flag for computing surface age at each iteration [DO NOT USE WITH LARGE MAPS]
 
 Example:
-    lvsim 1 --bbox 0 1000 1000 0 --max_range 0.2 --d_lim 2 1000
-    lvsim 50 --bbox 0 200 200 0 --max_range 0.04 --d_lim 2 200
+    lvsim --bbox 0 1000 1000 0 --max_range 0.2 --d_lim 2 1000 1
+    lvsim --bbox 0 200 200 0 --max_range 0.04 --d_lim 2 200 50
 
 """
 
@@ -52,20 +52,17 @@ def adjust_args(args):
 
 
 def run():
-    
-    # initialize config and sim
+
+    # initialize config
     cfg = LvSimCfg()
-    lvsim = LvSim(cfg)
 
     # loop through and run the sim for the correct number of times
-    for i in range(cfg.args.loop):
+    for i in range(cfg.args.loops):
 
-        print("#---------------------- Now on simulation %d / %d ----------------------#" % (i+1, cfg.args.loop))
+        print("#---------------------- Now on simulation %d / %d ----------------------#" % (i+1, cfg.args.loops))
 
-        # Override print to always display iteration number in print messages
-        def print(*args, **kwargs):
-            __builtins__.print('%d / %d: ' % (i+1, cfg.args.loop), end='')
-            return __builtins__.print(*args, **kwargs)
+        # Initialize sim
+        lvsim = LvSim(cfg)
 
         # change args if necessary
         if i > 0:
