@@ -15,6 +15,11 @@ class LvSimCfg():
         # setup argument parser
         parser = argparse.ArgumentParser()
 
+        # number of loops to include
+        parser.add_argument('loops',
+                            type=int,
+                            help='Number of sim loops to go through')
+
         # paths
         parser.add_argument('--outpath',
                             type=str,
@@ -50,7 +55,7 @@ class LvSimCfg():
                             type=float,
                             nargs=4,
                             default=[0, 1000, 1000, 0],
-                            help='Bounding box in m, ordered as min-x, may-y, max-x, min-y')
+                            help='Bounding box in m, ordered as min-x, max-y, max-x, min-y')
         parser.add_argument('--res',
                             type=float,
                             default=1.,
