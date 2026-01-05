@@ -61,12 +61,14 @@ def run():
 
         print("#---------------------- Now on simulation %d / %d ----------------------#" % (i+1, cfg.args.loops))
 
-        # Initialize sim
-        lvsim = LvSim(cfg)
-
         # change args if necessary
         if i > 0:
             cfg.args = adjust_args(cfg.args)
+            print(cfg.args.outpath)
+            print(cfg.args.mppath)
+
+        # Initialize sim
+        lvsim = LvSim(cfg)
 
         # run sim
         lvsim.run_all()
