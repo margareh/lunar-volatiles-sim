@@ -14,6 +14,8 @@ from matplotlib.image import AxesImage
 from matplotlib.lines import Line2D
 from matplotlib.collections import PathCollection
 
+import matplotlib
+matplotlib.use('TkAgg')
 
 # function to display data
 def display_data(elev_db, azim_res=1.):
@@ -76,12 +78,15 @@ def horizon_picker(elev_db, hmap, hmap_res, max_range, azim_res=1.):
     # hmap_f = rs.open(os.path.join(hmap_path, tif_file[0]))
     # hmap = hmap_f.read(1)
 
-    # limit heightmap to border
+    # limit heightmap and elevation maps to border
     r = int(np.floor(max_range * 1000 / hmap_res))
     h,w = hmap.shape
     dem_data_limit = hmap[r:(h-r), r:(w-r)]
+    # elev_db_limit = elev_db[:, r:(h-r), r:(w-r)]
+    elev_db_limit = elev_db
 
     del(hmap)
+    del(elev_db)
     # hmap_f.close()
     
     # load elevation database
@@ -107,16 +112,16 @@ def horizon_picker(elev_db, hmap, hmap_res, max_range, azim_res=1.):
     # initial plots
     azim = 0
     pt = np.array([int(h/2), int(w/2)])
-    heights = elev_db[:, pt[1], pt[0]]
+    heights = elev_db_limit[:, pt[1], pt[0]]
     
     l1, = ax1.plot(azims, heights, c='tab:blue')
     l2 = ax1.axvline(azim, ymin=0, ymax=np.max(heights), c='gray', linestyle='dashed')
-    ax1.set_ylim(np.min(elev_db)-0.25, np.max(elev_db)+0.25)
+    ax1.set_ylim(np.min(elev_db_limit)-0.25, np.max(elev_db_limit)+0.25)
 
     ax2.imshow(dem_data_limit, cmap='terrain')
     pt1 = ax2.scatter(pt[0], pt[1], c='red', s=2)
 
-    im1 = ax3.imshow(elev_db[azim, ...], cmap='Blues')
+    im1 = ax3.imshow(elev_db_limit[azim, ...], cmap='Blues')
     pt2 = ax3.scatter(pt[0], pt[1], c='red', s=2)
 
     # hook for mouse selection of points in image
@@ -134,14 +139,14 @@ def horizon_picker(elev_db, hmap, hmap_res, max_range, azim_res=1.):
             pt2.set_offsets(np.c_[x, y])
 
             # update horizon line
-            heights = elev_db[:, int(y), int(x)]
+            heights = elev_db_limit[:, int(y), int(x)]
             l1.set_data(azims, heights)
         
         elif len(curr_ax.get_lines()) > 0:
 
             # update the axis for the horizon elevation plot
             azim = event.xdata
-            im1.set_data(elev_db[int(azim), ...])
+            im1.set_data(elev_db_limit[int(azim), ...])
             l2.set_xdata([azim, azim])
         
         fig.canvas.draw()
