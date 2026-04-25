@@ -38,7 +38,7 @@ if __name__ == "__main__":
     random.seed(cfg.args.seed)
     
     # load in a surface heightmap in npy format
-    hw_dem_f = rs.open(os.path.join('/home/margareh/lunar-volatiles-sim/data/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif'))
+    hw_dem_f = rs.open(os.path.join('../data/Haworth_DEM_1mpp/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif'))
     hw_dem = hw_dem_f.read(1)
     crs = hw_dem_f.crs
     hw_dem_f.close()
