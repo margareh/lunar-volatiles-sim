@@ -484,7 +484,7 @@ class LvSim():
 
         # Add on border based on how far we're searching for horizon
         # currently setting border values to closest real value
-        b = int(self.cfg.args.max_range * 1000 * self.cfg.args.res)
+        b = int(self.cfg.args.max_range * 1000 / self.cfg.args.res)
         s = int(2*b + self.size)
         surf = np.zeros((s,s))
 
